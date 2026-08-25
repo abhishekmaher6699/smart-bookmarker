@@ -7,6 +7,8 @@ CREATE TABLE refresh_tokens (
 
     token_hash TEXT NOT NULL UNIQUE,
 
+    family_id UUID NOT NULL,
+
     expires_at TIMESTAMP NOT NULL,
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -16,9 +18,6 @@ CREATE TABLE refresh_tokens (
 
 CREATE INDEX refresh_tokens_user_id_idx
 ON refresh_tokens(user_id);
-
-ALTER TABLE refresh_tokens
-ADD COLUMN family_id UUID NOT NULL;
 
 CREATE INDEX refresh_tokens_family_id_idx
 ON refresh_tokens(family_id);

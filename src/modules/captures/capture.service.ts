@@ -10,22 +10,14 @@ import type {
   CreateCaptureInput,
   UpdateCaptureInput,
 } from "./capture.schema.js";
-
-import { enrichCapture } from "./enrichment.service.js";
+import {
+  createEnrichmentJob
+} from "./enrichment-job.repository.js";
 
 export async function createCapture(userId: string, input: CreateCaptureInput) {
   const existingCapture = await findCaptureByUrl(userId, input.url);
 
   if (existingCapture) {
-    if (existingCapture.enrichment_status === "failed") {
-      enrichCapture(existingCapture.id, userId, input.url).catch((error) => {
-        console.error(
-          `Capture enrichment retry failed for ${existingCapture.id}:`,
-          error,
-        );
-      });
-    }
-
     return existingCapture;
   }
 
@@ -41,10 +33,7 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
     content: null,
   });
 
-  // Don't await this.
-  enrichCapture(capture.id, userId, input.url).catch((error) => {
-    console.error(`Capture enrichment failed for ${capture.id}:`, error);
-  });
+  await createEnrichmentJob(capture.id)
 
   return capture;
 }

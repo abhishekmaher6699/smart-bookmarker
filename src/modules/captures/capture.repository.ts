@@ -12,7 +12,6 @@ type CreateCaptureData = {
     description?: string | null;
     thumbnailUrl?: string | null;
     content?: string | null;
-    enrichmentStatus?: "pending" | "processing" | "completed" | "failed";
 }
 
 export async function insertCapture(data: CreateCaptureData) {
@@ -27,10 +26,9 @@ export async function insertCapture(data: CreateCaptureData) {
             thumbnail_url,
             content,
             category_id,
-            tags,
-            enrichment_status
+            tags
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
         `,
         [
@@ -42,8 +40,7 @@ export async function insertCapture(data: CreateCaptureData) {
             data.thumbnailUrl ?? null,
             data.content ?? null,
             data.categoryId ?? null,
-            data.tags ?? null,
-            data.enrichmentStatus ?? "pending"
+            data.tags ?? null
         ]
     );
 
@@ -89,8 +86,7 @@ export async function findCapturesByUser(
             cc.name AS category,
             c.tags,
             c.created_at,
-            c.updated_at,
-            c.enrichment_status
+            c.updated_at
         FROM captures c
         LEFT JOIN capture_categories cc
             ON cc.id = c.category_id
@@ -126,8 +122,7 @@ export async function findCaptureById(
             cc.name AS category,
             c.tags,
             c.created_at,
-            c.updated_at,
-            c.enrichment_status
+            c.updated_at
         FROM captures c
         LEFT JOIN capture_categories cc
             ON cc.id = c.category_id
@@ -160,8 +155,7 @@ export async function findCaptureByUrl(
             cc.name AS category,
             c.tags,
             c.created_at,
-            c.updated_at,
-            c.enrichment_status
+            c.updated_at
         FROM captures c
         LEFT JOIN capture_categories cc
             ON cc.id = c.category_id
@@ -239,101 +233,3 @@ export async function deleteCaptureById(
     return result.rows[0] ?? null
 }
 
-export async function updateCaptureEnrichment(
-    captureId: string,
-    data: {
-        title: string | null;
-        type: string | null;
-        description: string | null;
-        thumbnailUrl: string | null;
-        content: string | null;
-        categoryId: string;
-        tags: string[];
-    },
-) {
-    const result = await pool.query(
-        `
-        UPDATE captures
-        SET
-            title = $1,
-            type = $2,
-            description = $3,
-            thumbnail_url = $4,
-            content = $5,
-            category_id = $6,
-            tags = $7,
-            updated_at = NOW()
-        WHERE id = $8
-        RETURNING *;
-        `,
-        [
-            data.title,
-            data.type,
-            data.description,
-            data.thumbnailUrl,
-            data.content,
-            data.categoryId,
-            data.tags,
-            captureId,
-        ],
-    );
-
-    return result.rows[0] ?? null;
-}
-
-export async function updateCaptureSummary(
-    captureId: string,
-    summary: string | null,
-) {
-    const result = await pool.query(
-        `
-        UPDATE captures
-        SET
-            summary = $1,
-            updated_at = NOW()
-        WHERE id = $2
-        RETURNING *;
-        `,
-        [summary, captureId],
-    );
-
-    return result.rows[0] ?? null;
-}
-
-export async function updateEnrichmentStatus(
-    captureId: string,
-    status: "processing" | "completed" | "failed",
-) {
-    const result = await pool.query(
-        `
-        UPDATE captures
-        SET
-            enrichment_status = $1,
-            updated_at = NOW()
-        WHERE id = $2
-        RETURNING *;
-        `,
-        [status, captureId],
-    );
-
-    return result.rows[0] ?? null;
-}
-
-export async function claimEnrichment(
-    captureId: string,
-) {
-    const result = await pool.query(
-        `
-        UPDATE captures
-        SET
-            enrichment_status = 'processing',
-            updated_at = NOW()
-        WHERE id = $1
-          AND enrichment_status IN ('pending', 'failed')
-        RETURNING *;
-        `,
-        [captureId],
-    );
-
-    return result.rows[0] ?? null;
-}
