@@ -1,0 +1,31 @@
+{
+  "name": "smart-bookmarker-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --import=tsx/esm --watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test:categorize": "node --env-file=.env --import=tsx/esm src/scripts/categorize.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.18.0",
+    "@mozilla/readability": "^0.6.0",
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "ipaddr.js": "^2.5.0",
+    "jsdom": "^29.1.1",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.23.0",
+    "undici": "^8.10.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.21.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}
