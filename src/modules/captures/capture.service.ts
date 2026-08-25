@@ -61,8 +61,15 @@ export async function listCapturesByUser(
   limit: number,
   offset: number,
   categoryIds?: string[],
+  search?: string,
 ) {
-  return findCapturesByUser(userId, limit, offset, categoryIds);
+  return findCapturesByUser(
+    userId,
+    limit,
+    offset,
+    categoryIds,
+    search,
+  );
 }
 
 export async function getCaptureById(captureId: string, userId: string) {

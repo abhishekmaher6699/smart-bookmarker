@@ -56,9 +56,13 @@ export async function findCapturesByUser(
     limit: number,
     offset: number,
     categoryIds?: string[],
+    search?: string,
 ) {
     const values: unknown[] = [userId];
+
+
     let categoryFilter = "";
+    let searchFilter = ""
 
     if (categoryIds?.length) {
         values.push(categoryIds);
@@ -67,6 +71,21 @@ export async function findCapturesByUser(
             AND c.category_id = ANY($${values.length}::uuid[])
         `;
     }
+
+    if (search) {
+        values.push(`%${search}%`)
+
+        searchFilter = `
+            AND (
+                c.title ILIKE $${values.length}
+                OR c.description ILIKE $${values.length}
+                OR c.url ILIKE $${values.length}
+                OR c.content ILIKE $${values.length}
+            )
+        `
+    }
+
+
 
     values.push(limit);
     const limitParam = values.length;
@@ -96,6 +115,7 @@ export async function findCapturesByUser(
             ON cc.id = c.category_id
         WHERE c.user_id = $1
         ${categoryFilter}
+        ${searchFilter}
         ORDER BY c.created_at DESC
         LIMIT $${limitParam}
         OFFSET $${offsetParam};

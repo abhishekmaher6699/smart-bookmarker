@@ -37,7 +37,7 @@ export async function listCapturesByUserHandler(req: Request, res: Response, nex
             throw new AppError(400, "Invalid request");
         }
 
-        const { limit, offset, categoryIds } = result.data;
+        const { limit, offset, search, categoryIds } = result.data;
 
         if (!req.user) {
             throw new AppError(401, "Authentication required");
@@ -50,6 +50,7 @@ export async function listCapturesByUserHandler(req: Request, res: Response, nex
             limit,
             offset,
             categoryIds,
+            search
         )
         
         res.json({

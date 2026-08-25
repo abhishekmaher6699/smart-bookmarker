@@ -9,6 +9,8 @@ export const createCaptureSchema = z.object({
 export const listCapturesByUserSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
   offset: z.coerce.number().int().min(0).default(0),
+  search: z.string().trim().min(1).optional(),
+
   categoryIds: z
     .string()
     .optional()
@@ -22,6 +24,7 @@ export const listCapturesByUserSchema = z.object({
     )
     .pipe(z.array(z.string().uuid()).optional()),
 });
+
 
 export const updateCaptureSchema = z
   .object({
