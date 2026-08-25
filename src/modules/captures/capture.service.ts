@@ -13,6 +13,7 @@ import type {
 import {
   createEnrichmentJob
 } from "./enrichment-job.repository.js";
+import { pool } from "../../db/client.js";
 
 export async function createCapture(userId: string, input: CreateCaptureInput) {
   const existingCapture = await findCaptureByUrl(userId, input.url);
@@ -21,21 +22,37 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
     return existingCapture;
   }
 
-  const capture = await insertCapture({
-    userID: userId,
-    url: input.url,
-    title: input.title ?? null,
-    type: input.type ?? null,
-    categoryId: null,
-    tags: null,
-    description: null,
-    thumbnailUrl: null,
-    content: null,
-  });
+  const client = await pool.connect();
 
-  await createEnrichmentJob(capture.id)
+  try {
+    await client.query("BEGIN");
 
-  return capture;
+    const capture = await insertCapture(
+      {
+        userID: userId,
+        url: input.url,
+        title: input.title ?? null,
+        type: input.type ?? null,
+        categoryId: null,
+        tags: null,
+        description: null,
+        thumbnailUrl: null,
+        content: null,
+      },
+      client,
+    );
+
+    await createEnrichmentJob(capture.id, client);
+
+    await client.query("COMMIT");
+
+    return capture;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function listCapturesByUser(

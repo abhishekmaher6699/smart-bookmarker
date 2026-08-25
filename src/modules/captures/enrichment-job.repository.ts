@@ -1,11 +1,13 @@
 import { pool } from "../../db/client.js";
+import type { Pool, PoolClient } from "pg";
 
 
 
 export async function createEnrichmentJob(
     captureId: string,
+    db: Pool | PoolClient = pool,
 ) {
-    const result = await pool.query(
+    const result = await db.query(
         `
         INSERT INTO enrichment_jobs (
             capture_id

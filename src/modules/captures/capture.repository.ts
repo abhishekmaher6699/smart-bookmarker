@@ -1,5 +1,6 @@
 
 import { pool } from "../../db/client.js";
+import type { Pool, PoolClient } from "pg";
 import type { UpdateCaptureInput } from "./capture.schema.js";
 
 type CreateCaptureData = {
@@ -14,8 +15,11 @@ type CreateCaptureData = {
     content?: string | null;
 }
 
-export async function insertCapture(data: CreateCaptureData) {
-    const result = await pool.query(
+export async function insertCapture(
+    data: CreateCaptureData,
+    db: Pool | PoolClient = pool,
+) {
+    const result = await db.query(
         `
         INSERT INTO captures (
             user_id,
