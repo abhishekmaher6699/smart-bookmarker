@@ -1,4 +1,4 @@
-import { pool } from "../../db/client.js";
+import { pool } from "../../../db/client.js";
 
 export async function updateCaptureEnrichment(
     captureId: string,

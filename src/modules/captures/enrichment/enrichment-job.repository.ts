@@ -1,4 +1,4 @@
-import { pool } from "../../db/client.js";
+import { pool } from "../../../db/client.js";
 import type { Pool, PoolClient } from "pg";
 
 
@@ -18,6 +18,30 @@ export async function createEnrichmentJob(
         RETURNING *;
         `,
         [captureId]
+    );
+
+    return result.rows[0] ?? null;
+}
+
+export async function retryFailedEnrichmentJob(
+    captureId: string,
+) {
+    const result = await pool.query(
+        `
+        UPDATE enrichment_jobs
+        SET
+            status = 'pending',
+            attempts = 0,
+            available_at = NOW(),
+            started_at = NULL,
+            completed_at = NULL,
+            last_error = NULL,
+            updated_at = NOW()
+        WHERE capture_id = $1
+          AND status = 'failed'
+        RETURNING *;
+        `,
+        [captureId],
     );
 
     return result.rows[0] ?? null;

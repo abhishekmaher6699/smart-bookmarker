@@ -3,9 +3,9 @@ import {
   completeEnrichmentJob,
   failEnrichmentJob,
   recoverStuckEnrichmentJobs,
-} from "../modules/captures/enrichment-job.repository.js";
+} from "../modules/captures/enrichment/enrichment-job.repository.js";
 
-import { enrichCapture } from "../modules/captures/enrichment.service.js";
+import { enrichCapture } from "../modules/captures/enrichment/enrichment.service.js";
 
 const POLL_INTERVAL = 1000;
 const RECOVERY_INTERVAL = 60_000;

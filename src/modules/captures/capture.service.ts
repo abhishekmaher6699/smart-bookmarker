@@ -11,8 +11,9 @@ import type {
   UpdateCaptureInput,
 } from "./capture.schema.js";
 import {
-  createEnrichmentJob
-} from "./enrichment-job.repository.js";
+  createEnrichmentJob,
+  retryFailedEnrichmentJob,
+} from "./enrichment/enrichment-job.repository.js";
 import { pool } from "../../db/client.js";
 
 export async function createCapture(userId: string, input: CreateCaptureInput) {
@@ -66,6 +67,25 @@ export async function listCapturesByUser(
 
 export async function getCaptureById(captureId: string, userId: string) {
   return findCaptureById(captureId, userId);
+}
+
+export async function retryCaptureEnrichment(
+  captureId: string,
+  userId: string,
+) {
+  const capture = await findCaptureById(captureId, userId);
+
+  if (!capture) {
+    return { status: "not_found" as const };
+  }
+
+  const job = await retryFailedEnrichmentJob(captureId);
+
+  if (!job) {
+    return { status: "not_retryable" as const };
+  }
+
+  return { status: "queued" as const, job };
 }
 
 export async function updateCapture(

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 
 import { createCaptureSchema, listCapturesByUserSchema, updateCaptureSchema } from "./capture.schema.js";
-import { createCapture, deleteCapture, getCaptureById, listCapturesByUser, updateCapture } from "./capture.service.js";
+import { createCapture, deleteCapture, getCaptureById, listCapturesByUser, retryCaptureEnrichment, updateCapture } from "./capture.service.js";
 import { AppError } from "../../errors/app-error.js";
 
 
@@ -98,6 +98,38 @@ export async function getCaptureHandler(
 
     } catch (error) {
         next(error)
+    }
+}
+
+export async function retryCaptureEnrichmentHandler(
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction,
+) {
+    try {
+        const captureId = req.params.id;
+
+        if (!captureId) {
+            throw new AppError(400, "Capture ID is required");
+        }
+
+        if (!req.user) {
+            throw new AppError(401, "Authentication required");
+        }
+
+        const result = await retryCaptureEnrichment(captureId, req.user.id);
+
+        if (result.status === "not_found") {
+            throw new AppError(404, "Capture not found");
+        }
+
+        if (result.status === "not_retryable") {
+            throw new AppError(409, "Enrichment job is not failed");
+        }
+
+        res.status(202).json({ data: result.job });
+    } catch (error) {
+        next(error);
     }
 }
 

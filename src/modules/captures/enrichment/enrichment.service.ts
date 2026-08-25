@@ -1,12 +1,12 @@
-import { ingestUrl } from "./ingestion/ingestion.service.js";
+import { ingestUrl } from "../ingestion/ingestion.service.js";
 
-import { categorizeBookmark } from "../../integrations/gemini/bookmark-categorizer.js";
-import { summarizeCapture } from "../../integrations/gemini/summarizer.js";
+import { categorizeBookmark } from "../../../integrations/gemini/bookmark-categorizer.js";
+import { summarizeCapture } from "../../../integrations/gemini/summarizer.js";
 
 import {
     getOrCreateCategory,
     getCategories,
-} from "../categories/category.service.js";
+} from "../../categories/category.service.js";
 
 import {
     updateCaptureEnrichment,
