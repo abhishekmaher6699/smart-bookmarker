@@ -85,6 +85,8 @@ export async function findCapturesByUser(
         `
     }
 
+    const filterValues = [...values]
+
 
 
     values.push(limit);
@@ -123,7 +125,21 @@ export async function findCapturesByUser(
         values,
     );
 
-    return result.rows;
+    const countResult = await pool.query(
+        `
+        SELECT COUNT(*) AS total
+        FROM captures c
+        WHERE c.user_id = $1
+        ${categoryFilter}
+        ${searchFilter}
+        `,
+        filterValues
+    )
+
+    return {
+        rows: result.rows,
+        total: Number(countResult.rows[0].total)
+    }
 }
 
 export async function findCaptureById(

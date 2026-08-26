@@ -53,11 +53,17 @@ export async function listCapturesByUserHandler(req: Request, res: Response, nex
             search
         )
         
+        const hasPrevious = offset > 0
+        const hasNext = offset + captures.rows.length < captures.total
+
         res.json({
-            data: captures,
+            data: captures.rows,
             pagination: {
                 limit, 
                 offset,
+                total: captures.total,
+                hasNext,
+                hasPrevious
             },
         });
     } catch (error) {
