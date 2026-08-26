@@ -62,6 +62,9 @@ export async function listCapturesByUser(
   offset: number,
   categoryIds?: string[],
   search?: string,
+  type?: string,
+  tag?: string,
+  sort: "newest" | "oldest" = "newest",
 ) {
   return findCapturesByUser(
     userId,
@@ -69,6 +72,9 @@ export async function listCapturesByUser(
     offset,
     categoryIds,
     search,
+    type,
+    tag,
+    sort
   );
 }
 

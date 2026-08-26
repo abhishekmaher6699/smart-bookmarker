@@ -57,12 +57,17 @@ export async function findCapturesByUser(
     offset: number,
     categoryIds?: string[],
     search?: string,
+    type?: string,
+    tag?: string,
+    sort: "newest" | "oldest" = "newest",
 ) {
     const values: unknown[] = [userId];
 
 
     let categoryFilter = "";
     let searchFilter = ""
+    let typeFilter = ""
+    let tagFilter = ""
 
     if (categoryIds?.length) {
         values.push(categoryIds);
@@ -85,9 +90,26 @@ export async function findCapturesByUser(
         `
     }
 
+    if (type) {
+        values.push(type)
+
+        typeFilter = `
+            AND c.type = $${values.length}
+        `
+    }
+
+    if (tag) {
+        values.push(tag.toLowerCase())
+
+        tagFilter = `
+            AND $${values.length} = ANY(c.tags)
+        `
+    }
+
+    const orderDirection = sort === "oldest" ? "ASC" : "DESC";
+
+
     const filterValues = [...values]
-
-
 
     values.push(limit);
     const limitParam = values.length;
@@ -118,7 +140,9 @@ export async function findCapturesByUser(
         WHERE c.user_id = $1
         ${categoryFilter}
         ${searchFilter}
-        ORDER BY c.created_at DESC
+        ${typeFilter}
+        ${tagFilter}
+        ORDER BY c.created_at ${orderDirection}
         LIMIT $${limitParam}
         OFFSET $${offsetParam};
         `,
@@ -132,6 +156,8 @@ export async function findCapturesByUser(
         WHERE c.user_id = $1
         ${categoryFilter}
         ${searchFilter}
+        ${typeFilter}
+        ${tagFilter}
         `,
         filterValues
     )

@@ -37,7 +37,7 @@ export async function listCapturesByUserHandler(req: Request, res: Response, nex
             throw new AppError(400, "Invalid request");
         }
 
-        const { limit, offset, search, categoryIds } = result.data;
+        const { limit, offset, search, categoryIds, type, tag, sort } = result.data;
 
         if (!req.user) {
             throw new AppError(401, "Authentication required");
@@ -50,7 +50,10 @@ export async function listCapturesByUserHandler(req: Request, res: Response, nex
             limit,
             offset,
             categoryIds,
-            search
+            search,
+            type,
+            tag, 
+            sort
         )
         
         const hasPrevious = offset > 0
