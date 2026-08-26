@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/app-error.js";
+import { logger } from "../utils/logger.js";
 
 
 export function errorMiddleware(
@@ -8,7 +9,11 @@ export function errorMiddleware(
     res: Response,
     next: NextFunction
 ) {
-    console.error(error);
+    logger.error("Request failed", {
+        method: req.method,
+        path: req.originalUrl,
+        error: error instanceof Error ? error.message : String(error),
+    });
 
     if (error instanceof AppError) {
         res.status(error.statusCode).json({

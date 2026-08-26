@@ -2,6 +2,7 @@ import { ingestUrl } from "../ingestion/ingestion.service.js";
 
 import { categorizeBookmark } from "../../../integrations/gemini/bookmark-categorizer.js";
 import { summarizeCapture } from "../../../integrations/gemini/summarizer.js";
+import { logger } from "../../../utils/logger.js";
 
 import {
     getOrCreateCategory,
@@ -27,7 +28,7 @@ export async function enrichCapture(
     
     const metadata = await ingestUrl(url);
 
-    console.log("🟢 Ingestion complete:", {
+    logger.info("Capture ingestion complete", {
         captureId,
         title: metadata.title,
         type: metadata.type,
@@ -35,10 +36,10 @@ export async function enrichCapture(
 
     const existingCategories = await getCategories(userId);
 
-    console.log(
-        "🟢 Categories:",
-        existingCategories,
-    );
+    logger.info("Loaded categories for enrichment", {
+        captureId,
+        categoryCount: existingCategories.length,
+    });
 
     const categorization = await categorizeBookmark({
         title: metadata.title ?? null,
@@ -50,20 +51,22 @@ export async function enrichCapture(
         ),
     });
 
-    console.log(
-        "🟢 Categorization:",
-        categorization,
-    );
+    logger.info("Capture categorized", {
+        captureId,
+        category: categorization.category,
+        tags: categorization.tags,
+    });
 
     const category = await getOrCreateCategory(
         userId,
         categorization.category.trim(),
     );
 
-    console.log(
-        "🟢 Category:",
-        category,
-    );
+    logger.info("Category assigned to capture", {
+        captureId,
+        categoryId: category.id,
+        category: category.name,
+    });
 
     const tags = [
         ...new Set(
@@ -103,16 +106,13 @@ export async function enrichCapture(
             updated = summaryUpdated;
         }
     } catch (error) {
-        console.warn(
-            `Summary generation failed for ${captureId}:`,
-            error,
-        );
+        logger.warn("Summary generation failed", {
+            captureId,
+            error: error instanceof Error ? error.message : String(error),
+        });
     }
 
-    console.log(
-        "🟢 Enrichment complete:",
-        captureId,
-    );
+    logger.info("Capture enrichment complete", { captureId });
 
     return updated;
 }

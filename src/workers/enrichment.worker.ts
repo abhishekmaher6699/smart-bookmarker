@@ -6,6 +6,7 @@ import {
 } from "../modules/captures/enrichment/enrichment-job.repository.js";
 
 import { enrichCapture } from "../modules/captures/enrichment/enrichment.service.js";
+import { logger } from "../utils/logger.js";
 
 const POLL_INTERVAL = 1000;
 const RECOVERY_INTERVAL = 60_000;
@@ -34,7 +35,7 @@ async function processNextJob() {
     return false;
   }
 
-  console.log(`🟡 Processing job ${job.id}`);
+  logger.info("Processing enrichment job", { jobId: job.id });
 
   try {
     await withTimeout(
@@ -44,9 +45,12 @@ async function processNextJob() {
 
     await completeEnrichmentJob(job.id);
 
-    console.log(`🟢 Job completed: ${job.id}`);
+    logger.info("Enrichment job completed", { jobId: job.id });
   } catch (error) {
-    console.error(`🔴 Job failed: ${job.id}`, error);
+    logger.error("Enrichment job failed", {
+      jobId: job.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     await failEnrichmentJob(
       job.id,
@@ -62,7 +66,7 @@ async function recoverStuckJobs() {
   const jobs = await recoverStuckEnrichmentJobs();
 
   if (jobs.length > 0) {
-    console.log(`♻️ Recovered ${jobs.length} stuck job(s)`);
+    logger.warn("Recovered stuck enrichment jobs", { count: jobs.length });
   }
 }
 
@@ -73,21 +77,21 @@ async function shutdown(signal: string) {
 
   isShuttingDown = true;
 
-  console.log(`🛑 Received ${signal}. Shutting down...`);
+  logger.info("Worker shutdown requested", { signal });
 
   if (currentJobPromise) {
-    console.log("⏳ Waiting for current job to finish...");
+    logger.info("Waiting for current job to finish");
 
     await currentJobPromise;
   }
 
-  console.log("👋 Worker stopped.");
+  logger.info("Worker stopped");
 
   process.exit(0);
 }
 
 async function startWorker() {
-  console.log("Enrichemnt worker started");
+  logger.info("Enrichment worker started");
 
   while (!isShuttingDown) {
     try {
@@ -108,7 +112,9 @@ async function startWorker() {
         currentJobPromise = null;
       }
     } catch (error) {
-      console.error("Worker error:", error);
+      logger.error("Worker error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
     }
