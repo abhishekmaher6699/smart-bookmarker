@@ -130,16 +130,10 @@ const MAX_ATTEMPTS = 4
 
 
 function getRetryDelay(attempt: number) {
-    // const delays = [
-    //     30_000,
-    //     2 * 60_000,
-    //     10 * 60_000
-    // ]
-
-        const delays = [
-        5_000,
-        6_000,
-        7_000
+    const delays = [
+        30_000,
+        2 * 60_000,
+        10 * 60_000,
     ]
 
 
@@ -150,11 +144,12 @@ function getRetryDelay(attempt: number) {
 export async function failEnrichmentJob(
     jobId: string,
     error: string,
-    attempts : number
+    attempts : number,
+    retryDelayMs?: number,
 ) {
 
 
-    const delay = getRetryDelay(attempts)
+    const delay = retryDelayMs ?? getRetryDelay(attempts)
 
     const permanentlyFailed = attempts >= MAX_ATTEMPTS
 

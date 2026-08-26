@@ -6,6 +6,7 @@ import {
 } from "../modules/captures/enrichment/enrichment-job.repository.js";
 
 import { enrichCapture } from "../modules/captures/enrichment/enrichment.service.js";
+import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
 import { logger } from "../utils/logger.js";
 
 const POLL_INTERVAL = 1000;
@@ -15,7 +16,8 @@ let lastRecovery = 0;
 let isShuttingDown = false;
 let currentJobPromise: Promise<boolean> | null = null;
 
-const JOB_TIMEOUT = 2 * 60 * 1000; // 2 minutes
+const JOB_TIMEOUT = 2 * 60 * 1000; 
+const RATE_LIMIT_RETRY_DELAY = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
@@ -47,8 +49,11 @@ async function processNextJob() {
 
     logger.info("Enrichment job completed", { jobId: job.id });
   } catch (error) {
+    const rateLimited = isGeminiRateLimitError(error);
+
     logger.error("Enrichment job failed", {
       jobId: job.id,
+      rateLimited,
       error: error instanceof Error ? error.message : String(error),
     });
 
@@ -56,6 +61,7 @@ async function processNextJob() {
       job.id,
       error instanceof Error ? error.message : String(error),
       job.attempts,
+      rateLimited ? RATE_LIMIT_RETRY_DELAY : undefined,
     );
   }
 

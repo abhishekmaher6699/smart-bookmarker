@@ -12,3 +12,17 @@ export function getGeminiClient(): GoogleGenAI {
 
   return client;
 }
+
+export function isGeminiRateLimitError(
+  error: unknown,
+): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  if ("status" in error && error.status === 429) {
+    return true;
+  }
+
+  return false;
+}
