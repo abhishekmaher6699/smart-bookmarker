@@ -8,8 +8,8 @@ export async function updateCaptureEnrichment(
         description: string | null;
         thumbnailUrl: string | null;
         content: string | null;
-        categoryId: string;
-        tags: string[];
+        categoryId: string | null;
+        tags: string[] | null;
     },
 ) {
     const result = await pool.query(

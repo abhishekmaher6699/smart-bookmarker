@@ -1,98 +1,114 @@
-export type CaptureType =
-    | "article"
-    | "pdf"
-    | "video"
-    | "github"
-    | "image";
-
+export type CaptureType = "article" | "pdf" | "video" | "github" | "image";
 
 export function detectTypeFromContentType(
-    contentType: string | null
+  contentType: string | null,
 ): CaptureType | null {
+  if (!contentType) {
+    return null;
+  }
 
-    if (!contentType) {return null}
+  const type = contentType.split(";")[0]?.trim().toLowerCase();
+  if (!type) {
+    return null;
+  }
 
-    const type = contentType.split(";")[0]?.trim().toLowerCase()    
-    if (!type) {return null;}
+  if (type === "application/pdf") {
+    return "pdf";
+  }
 
-    if (type === "application/pdf") {
-       return "pdf";
-    }
- 
-    if (type.startsWith("image/")) {
-        return "image";
-    }
+  if (type.startsWith("image/")) {
+    return "image";
+  }
 
-    if (type.startsWith("video/")) {
-        return "video";
-    }
-    return null;   
+  if (type.startsWith("video/")) {
+    return "video";
+  }
+  return null;
 }
 
-export function detectTypeFromUrl(
-    url: string,
-): CaptureType | null {
-    const hostname = new URL(url).hostname.toLowerCase();
+export function detectTypeFromUrl(url: string): CaptureType | null {
+  const hostname = new URL(url).hostname.toLowerCase();
 
-    if (
-        hostname === "github.com" ||
-        hostname.endsWith(".github.com")
-    ) {
-        return "github";
-    }
+  if (hostname === "github.com" || hostname.endsWith(".github.com")) {
+    return "github";
+  }
 
-    return null;
+  if (
+    hostname === "youtube.com" ||
+    hostname.endsWith(".youtube.com") ||
+    hostname === "youtu.be"
+  ) {
+    return "video";
+  }
+
+  return null;
 }
 
 export function detectTypeFromMetadata(
-    ogType: string | null,
+  ogType: string | null,
 ): CaptureType | null {
-    if (!ogType) {
-        return null;
-    }
-
-    const type = ogType.toLowerCase();
-
-    if (type.startsWith("video")) {
-        return "video";
-    }
-
-    if (type === "article") {
-        return "article";
-    }
-
+  if (!ogType) {
     return null;
+  }
+
+  const type = ogType.toLowerCase();
+
+  if (type.startsWith("video")) {
+    return "video";
+  }
+
+  if (type === "article") {
+    return "article";
+  }
+
+  return null;
 }
 
 export function detectType(
-    url: string,
-    contentType: string | null,
-    ogType: string | null,
+  url: string,
+  contentType: string | null,
+  ogType: string | null,
 ): CaptureType | null {
-    const mimeType = detectTypeFromContentType(contentType);
+  const mimeType = detectTypeFromContentType(contentType);
 
-    if (mimeType) {
-        return mimeType;
-    }
+  if (mimeType) {
+    console.log("TYPE: MIME", mimeType);
+    return mimeType;
+  }
 
-    const urlType = detectTypeFromUrl(url);
+  const urlType = detectTypeFromUrl(url);
 
-    if (urlType) {
-        return urlType;
-    }
+  console.log("TYPE: URL", {
+    url,
+    hostname: new URL(url).hostname,
+    urlType,
+  });
 
-    const metadataType = detectTypeFromMetadata(ogType);
+  if (urlType) {
+    return urlType;
+  }
 
-    if (metadataType) {
-        return metadataType;
-    }
+  const metadataType = detectTypeFromMetadata(ogType);
 
-    const normalizedContentType =
-        contentType?.split(";")[0]?.trim().toLowerCase();
+  console.log("TYPE: METADATA", {
+    ogType,
+    metadataType,
+  });
 
-    if (normalizedContentType === "text/html") {
-        return "article";
-    }
+  if (metadataType) {
+    return metadataType;
+  }
 
-    return null;
+  const normalizedContentType =
+    contentType
+      ?.split(";")[0]
+      ?.trim()
+      .toLowerCase();
+
+  if (normalizedContentType === "text/html") {
+    console.log("TYPE: HTML FALLBACK");
+    return "article";
+  }
+
+  return null;
 }

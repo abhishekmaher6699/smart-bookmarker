@@ -8,7 +8,7 @@ type RateLimitEntry = {
 const clients = new Map<string, RateLimitEntry>();
 
 const WINDOW_MS = 60 * 1000;
-const MAX_REQ = 2;
+const MAX_REQ = 50;
 const CLEANUP_INTERVAL_MS = 60 * 1000;
 
 export function rateLimit(req: Request, res: Response, next: NextFunction) {
@@ -24,7 +24,7 @@ export function rateLimit(req: Request, res: Response, next: NextFunction) {
       }
     }
   }, CLEANUP_INTERVAL_MS);
-  
+
 
   const entry = clients.get(clientKey);
 

@@ -2,8 +2,32 @@ import { z } from "zod";
 
 export const createCaptureSchema = z.object({
   url: z.url(),
-  title: z.string().trim().min(1).optional(),
-  type: z.enum(["article", "video", "pdf", "image", "github"]).optional(),
+
+  title: z.string().trim().min(1).nullable().optional(),
+
+  type: z.enum(["article", "video", "pdf", "image", "github"]).nullable().optional(),
+
+  browserData: z
+    .object({
+      title: z.string().trim().min(1).nullable().optional(),
+
+      type: z
+        .enum(["article", "video", "pdf", "image", "github"])
+        .nullable()
+        .optional(),
+
+      html: z.string().max(5_000_000).nullable().optional(),
+
+      content: z.string().max(500_000).nullable().optional(),
+
+      description: z.string().trim().nullable().optional(),
+
+      thumbnailUrl: z.url().nullable().optional(),
+
+      selectedText: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const listCapturesByUserSchema = z.object({
@@ -27,7 +51,6 @@ export const listCapturesByUserSchema = z.object({
     )
     .pipe(z.array(z.string().uuid()).optional()),
 });
-
 
 export const updateCaptureSchema = z
   .object({

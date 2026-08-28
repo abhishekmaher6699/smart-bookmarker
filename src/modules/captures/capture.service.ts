@@ -15,6 +15,7 @@ import {
   retryFailedEnrichmentJob,
 } from "./enrichment/enrichment-job.repository.js";
 import { pool } from "../../db/client.js";
+import { insertBrowserSource } from "./capture-source.repository.js";
 
 export async function createCapture(userId: string, input: CreateCaptureInput) {
   const existingCapture = await findCaptureByUrl(userId, input.url);
@@ -42,6 +43,22 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
       },
       client,
     );
+
+    if (input.browserData) {
+      await insertBrowserSource(
+        {
+          captureId: capture.id,
+          html: input.browserData.html,
+          title: input.browserData.title,
+          type: input.browserData.type,
+          content: input.browserData.content,
+          description: input.browserData.description,
+          thumbnailUrl: input.browserData.thumbnailUrl,
+          selectedText: input.browserData.selectedText,
+        },
+        client,
+      );
+    }
 
     await createEnrichmentJob(capture.id, client);
 
@@ -74,7 +91,7 @@ export async function listCapturesByUser(
     search,
     type,
     tag,
-    sort
+    sort,
   );
 }
 

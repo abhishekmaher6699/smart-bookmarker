@@ -11,6 +11,7 @@ export async function createCaptureHandler(req: Request, res: Response, next: Ne
         const result = createCaptureSchema.safeParse(req.body);
 
         if (!result.success) {
+            console.log(result.error.flatten());
             throw new AppError(400, "Invalid request");
         }
 
