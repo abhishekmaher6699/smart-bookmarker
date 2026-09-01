@@ -11,58 +11,59 @@ const WINDOW_MS = 60 * 1000;
 const MAX_REQ = 50;
 const CLEANUP_INTERVAL_MS = 60 * 1000;
 
-export function rateLimit(req: Request, res: Response, next: NextFunction) {
+setInterval(() => {
+  const now = Date.now();
+
+  for (const [clientKey, entry] of clients) {
+    if (now - entry.windowStart >= WINDOW_MS) {
+      clients.delete(clientKey);
+    }
+  }
+}, CLEANUP_INTERVAL_MS);
+
+export function rateLimit(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const clientKey = req.ip ?? "unknown";
   const now = Date.now();
 
-  setInterval(() => {
-    const now = Date.now();
+  let entry = clients.get(clientKey);
 
-    for (const [clientKey, entry] of clients) {
-      if (now - entry.windowStart >= WINDOW_MS) {
-        clients.delete(clientKey);
-      }
-    }
-  }, CLEANUP_INTERVAL_MS);
-
-
-  const entry = clients.get(clientKey);
-
-  if (!entry) {
-    clients.set(clientKey, {
-      count: 1,
+  // Start a new fixed window.
+  if (!entry || now - entry.windowStart >= WINDOW_MS) {
+    entry = {
+      count: 0,
       windowStart: now,
-    });
+    };
 
-    return next();
+    clients.set(clientKey, entry);
   }
 
-  const windowExpired = now - entry.windowStart >= WINDOW_MS;
+  const resetAt = Math.ceil(
+    (entry.windowStart + WINDOW_MS) / 1000,
+  );
 
-  if (windowExpired) {
-    clients.set(clientKey, {
-      count: 1,
-      windowStart: now,
-    });
+  // Reject before incrementing.
+  if (entry.count >= MAX_REQ) {
+    res.setHeader("RateLimit-Limit", MAX_REQ);
+    res.setHeader("RateLimit-Remaining", 0);
+    res.setHeader("RateLimit-Reset", resetAt);
 
-    return next();
-  }
-
-  entry.count++;
-
-  const remaining = Math.max(0, MAX_REQ - entry.count);
-
-  const resetAt = Math.ceil((entry.windowStart + WINDOW_MS) / 1000);
-
-  res.setHeader("RateLimit-Limit", MAX_REQ);
-  res.setHeader("RateLimit-Remaining", remaining);
-  res.setHeader("RateLimit-Reset", resetAt);
-
-  if (entry.count > MAX_REQ) {
     return res.status(429).json({
       error: "Too many requests",
     });
   }
+
+  // This request is accepted.
+  entry.count++;
+
+  const remaining = MAX_REQ - entry.count;
+
+  res.setHeader("RateLimit-Limit", MAX_REQ);
+  res.setHeader("RateLimit-Remaining", remaining);
+  res.setHeader("RateLimit-Reset", resetAt);
 
   next();
 }
