@@ -8,6 +8,9 @@ if (!redisUrl) {
 
 export const redis = createClient({
   url: redisUrl,
+  socket: {
+    reconnectStrategy: false,
+  }
 });
 
 

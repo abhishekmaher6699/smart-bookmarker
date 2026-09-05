@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { redis } from "../lib/redis.js";
+import { logger } from "../utils/logger.js";
 
 export type RateLimitPolicy = {
   capacity: number;
@@ -86,50 +87,66 @@ return {
 }
 `;
 
-export function rateLimit(policyName: string, policy: RateLimitPolicy) {
+export type RateLimitKey = "ip" | "user";
+
+export function rateLimit(
+  policyName: string,
+  policy: RateLimitPolicy,
+  keyType: RateLimitKey = "ip",
+) {
   return async function rateLimit(
     req: Request,
     res: Response,
     next: NextFunction,
   ) {
-    const clientKey = req.ip ?? "unknown";
+    const clientKey = keyType === "user" ? req.user?.id : (req.ip ?? "unknown");
+
+    if (!clientKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const redisKey = `rate-limit:${policyName}:${clientKey}`;
 
     const now = Date.now() / 1000;
 
-    const result = (await redis.eval(TOKEN_BUCKET_SCRIPT, {
-      keys: [redisKey],
-      arguments: [
-        String(policy.capacity),
-        String(policy.refillRate),
-        String(now),
-        String(TTL_SECONDS),
-      ],
-    })) as [number, number];
+    try {
+      const result = (await redis.eval(TOKEN_BUCKET_SCRIPT, {
+        keys: [redisKey],
+        arguments: [
+          String(policy.capacity),
+          String(policy.refillRate),
+          String(now),
+          String(TTL_SECONDS),
+        ],
+      })) as [number, number];
 
-    const [allowed, remainingTokens] = result;
+      const [allowed, remainingTokens] = result;
 
-    console.log({
-      clientKey,
-      redisKey,
-      allowed,
-      remainingTokens,
-    });
+      res.setHeader("RateLimit-Limit", policy.capacity);
+      res.setHeader(
+        "RateLimit-Remaining",
+        Math.floor(Math.max(0, remainingTokens)),
+      );
 
-    res.setHeader("RateLimit-Limit", policy.capacity);
-    res.setHeader(
-      "RateLimit-Remaining",
-      Math.floor(Math.max(0, remainingTokens)),
-    );
 
-    if (!allowed) {
-      res.setHeader("Retry-After", "2");
+      if (!allowed) {
+        const retryAfter = Math.ceil(1 / policy.refillRate);
+        res.setHeader("Retry-After", retryAfter);
 
-      return res.status(429).json({
-        error: "Too many requests",
-      });
+        return res.status(429).json({
+          error: "Too many requests",
+        });
+      }
+
+      next();
+    } catch (error) {
+      logger.error("Rate limiter Redis failure", {
+        error: error instanceof Error ? error.message : String(error),
+        policy: policyName,
+        clientKey,
+      })
+
+      next()
     }
-
-    next();
   };
 }

@@ -4,9 +4,9 @@ import { RATE_LIMITS, rateLimit } from "../../middleware/rate-limit.middleware.j
 
 const router = Router();
 
-router.post("/register", rateLimit("register", RATE_LIMITS.register), registerHandler)
-router.post("/login",rateLimit("login", RATE_LIMITS.login), loginHandler)
-router.post("/refresh", rateLimit("refresh", RATE_LIMITS.refresh), refreshTokenHandler)
+router.post("/register", rateLimit("register", RATE_LIMITS.register, "ip"), registerHandler)
+router.post("/login",rateLimit("login", RATE_LIMITS.login, "ip"), loginHandler)
+router.post("/refresh", rateLimit("refresh", RATE_LIMITS.refresh, "ip"), refreshTokenHandler)
 router.post("/logout", logoutHandler)
 
 export default router

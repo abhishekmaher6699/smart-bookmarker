@@ -6,7 +6,7 @@ import { authMiddleware } from "../../middleware/auth.middleware.js"
 
 const router = Router();
 
-router.post("/", authMiddleware, rateLimit("captures", RATE_LIMITS.captureCreate), createCaptureHandler)
+router.post("/", authMiddleware, rateLimit("captures", RATE_LIMITS.captureCreate, "user"), createCaptureHandler)
 router.get("/", authMiddleware, listCapturesByUserHandler)
 router.post("/:id/retry-enrichment", authMiddleware, retryCaptureEnrichmentHandler)
 router.get("/:id", authMiddleware, getCaptureHandler,)
