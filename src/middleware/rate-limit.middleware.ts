@@ -1,25 +1,27 @@
 import type { Request, Response, NextFunction } from "express";
 
-type RateLimitEntry = {
-  count: number;
-  windowStart: number;
-};
+type TokenBucket = {
+  tokens: number;
+  lastRefill: number;
+}
 
-const clients = new Map<string, RateLimitEntry>();
-
-const WINDOW_MS = 60 * 1000;
-const MAX_REQ = 50;
+const buckets = new Map<string, TokenBucket>();
+const CAPACITY = 30
+const REFILL_RATE = 1
 const CLEANUP_INTERVAL_MS = 60 * 1000;
 
 setInterval(() => {
   const now = Date.now();
 
-  for (const [clientKey, entry] of clients) {
-    if (now - entry.windowStart >= WINDOW_MS) {
-      clients.delete(clientKey);
+  for (const [clientKey, bucket] of buckets) {
+    const elapsedSec = (now - bucket.lastRefill) / 1000;
+
+    if (elapsedSec >= 60) {
+      buckets.delete(clientKey)
     }
   }
 }, CLEANUP_INTERVAL_MS);
+
 
 export function rateLimit(
   req: Request,
@@ -29,41 +31,42 @@ export function rateLimit(
   const clientKey = req.ip ?? "unknown";
   const now = Date.now();
 
-  let entry = clients.get(clientKey);
+  let bucket = buckets.get(clientKey);
 
-  // Start a new fixed window.
-  if (!entry || now - entry.windowStart >= WINDOW_MS) {
-    entry = {
-      count: 0,
-      windowStart: now,
-    };
+  if (!bucket) {
+    bucket = {
+      tokens: CAPACITY,
+      lastRefill: now,
+    }
 
-    clients.set(clientKey, entry);
+    buckets.set(clientKey, bucket)
   }
 
-  const resetAt = Math.ceil(
-    (entry.windowStart + WINDOW_MS) / 1000,
-  );
+  const elapsedSeconds = (now - bucket.lastRefill) / 1000
 
-  // Reject before incrementing.
-  if (entry.count >= MAX_REQ) {
-    res.setHeader("RateLimit-Limit", MAX_REQ);
-    res.setHeader("RateLimit-Remaining", 0);
-    res.setHeader("RateLimit-Reset", resetAt);
+  bucket.tokens = Math.min(
+    CAPACITY,
+    bucket.tokens + elapsedSeconds * REFILL_RATE
+  )
 
+  bucket.lastRefill = now
+
+  if (bucket.tokens < 1) {
+    res.setHeader("RateLimit-Limit", CAPACITY);
+    res.setHeader("RateLimit-Remaining", Math.floor(bucket.tokens))
+  
     return res.status(429).json({
-      error: "Too many requests",
-    });
+      error: "TOo many requests"
+    })
   }
 
-  // This request is accepted.
-  entry.count++;
+  bucket.tokens -= 1
 
-  const remaining = MAX_REQ - entry.count;
-
-  res.setHeader("RateLimit-Limit", MAX_REQ);
-  res.setHeader("RateLimit-Remaining", remaining);
-  res.setHeader("RateLimit-Reset", resetAt);
+  res.setHeader("RateLimit-Limit", CAPACITY);
+  res.setHeader(
+    "RateLimit-Remaining",
+    Math.floor(bucket.tokens),
+  );
 
   next();
 }
