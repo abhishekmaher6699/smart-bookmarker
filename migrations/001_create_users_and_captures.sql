@@ -18,6 +18,7 @@ CREATE TABLE capture_categories (
     name TEXT NOT NULL,
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     CONSTRAINT capture_categories_user_name_unique
         UNIQUE (user_id, name)
@@ -53,7 +54,8 @@ CREATE TABLE captures (
     content TEXT,
     summary TEXT,
     category_id UUID
-        REFERENCES capture_categories(id),
+        REFERENCES capture_categories(id)
+        ON DELETE SET NULL,
     tags TEXT[],
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

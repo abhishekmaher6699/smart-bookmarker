@@ -4,6 +4,7 @@ import captureRouter from "./modules/captures/capture.routes.js"
 import categoryRoutes from "./modules/categories/category.routes.js"
 import { errorMiddleware } from "./middleware/error.middleware.js"
 import { RATE_LIMITS, rateLimit } from "./middleware/rate-limit.middleware.js"
+import searchRoutes from "./modules/search/search.routes.js"
 
 const app = express()
 app.disable("x-powered-by");
@@ -16,6 +17,7 @@ app.use(rateLimit("global", RATE_LIMITS.global))
 app.use("/auth", authRouter)
 app.use("/captures", captureRouter)
 app.use("/categories", categoryRoutes)
+app.use("/search", searchRoutes);
 
 
 app.use(errorMiddleware)

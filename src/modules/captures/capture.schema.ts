@@ -33,27 +33,6 @@ export const createCaptureSchema = z.object({
     .optional(),
 });
 
-export const listCapturesByUserSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-  offset: z.coerce.number().int().min(0).default(0),
-  search: z.string().trim().min(1).optional(),
-  type: z.enum(["article", "video", "pdf", "image", "github"]).optional(),
-  tag: z.string().trim().min(1).optional(),
-  sort: z.enum(["newest", "oldest"]).default("newest"),
-
-  categoryIds: z
-    .string()
-    .optional()
-    .transform((value) =>
-      value
-        ? value
-            .split(",")
-            .map((id) => id.trim())
-            .filter(Boolean)
-        : undefined,
-    )
-    .pipe(z.array(z.string().uuid()).optional()),
-});
 
 export const updateCaptureSchema = z
   .object({
@@ -70,5 +49,4 @@ export const updateCaptureSchema = z
   });
 
 export type CreateCaptureInput = z.infer<typeof createCaptureSchema>;
-export type ListCapturesByUserInput = z.infer<typeof listCapturesByUserSchema>;
 export type UpdateCaptureInput = z.infer<typeof updateCaptureSchema>;

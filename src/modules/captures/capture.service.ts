@@ -1,6 +1,5 @@
 import {
   insertCapture,
-  findCapturesByUser,
   findCaptureById,
   updateCaptureById,
   deleteCaptureById,
@@ -76,27 +75,6 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
   }
 }
 
-export async function listCapturesByUser(
-  userId: string,
-  limit: number,
-  offset: number,
-  categoryIds?: string[],
-  search?: string,
-  type?: string,
-  tag?: string,
-  sort: "newest" | "oldest" = "newest",
-) {
-  return findCapturesByUser(
-    userId,
-    limit,
-    offset,
-    categoryIds,
-    search,
-    type,
-    tag,
-    sort,
-  );
-}
 
 export async function getCaptureById(captureId: string, userId: string) {
   return findCaptureById(captureId, userId);
