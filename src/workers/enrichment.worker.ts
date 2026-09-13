@@ -1,11 +1,17 @@
 import {
   claimNextEnrichmentJob,
   completeEnrichmentJob,
+  createEnrichmentJob,
   failEnrichmentJob,
   recoverStuckEnrichmentJobs,
 } from "../modules/captures/enrichment/enrichment-job.repository.js";
 
-import { enrichCapture } from "../modules/captures/enrichment/enrichment.service.js";
+import {
+  runIngestionJob,
+  runCategorizationJob,
+  runSummaryJob,
+} from "../modules/captures/enrichment/enrichment.service.js";
+
 import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
 import { logger } from "../utils/logger.js";
 
@@ -27,7 +33,48 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
         reject(new Error(`Enrichment timed out after ${timeoutMs / 1000}s`));
       }, timeoutMs);
     }),
+
   ]);
+}
+
+
+async function processEnrichmentJob(job: {
+  type: "ingestion" | "categorization" | "summary";
+  capture_id: string;
+  user_id: string;
+  url: string;
+}) {
+  switch (job.type) {
+    case "ingestion": {
+      const result = await runIngestionJob(
+        job.capture_id,
+        job.url,
+      );
+
+      if (result.requiresAiEnrichment) {
+        await createEnrichmentJob(job.capture_id, "categorization");
+        await createEnrichmentJob(job.capture_id, "summary");
+      }
+
+      return result;
+
+    }
+
+
+    case "categorization":
+      return runCategorizationJob(
+        job.capture_id,
+        job.user_id,
+      );
+
+    case "summary":
+      return runSummaryJob(
+        job.capture_id,
+      );
+
+    default:
+      throw new Error(`Unknown enrichment job type: ${job.type}`);
+  }
 }
 
 async function processNextJob() {
@@ -41,7 +88,7 @@ async function processNextJob() {
 
   try {
     await withTimeout(
-      enrichCapture(job.capture_id, job.user_id, job.url),
+      processEnrichmentJob(job),
       JOB_TIMEOUT,
     );
 

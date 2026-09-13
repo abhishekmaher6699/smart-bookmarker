@@ -281,7 +281,6 @@ export async function updateCaptureById(
     return result.rows[0] ?? null;
 }
 
-
 export async function deleteCaptureById(
     captureId: string,
     userId: string
@@ -297,5 +296,31 @@ export async function deleteCaptureById(
     )
 
     return result.rows[0] ?? null
+}
+
+export async function findCaptureForEnrichment(
+  captureId: string,
+) {
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      user_id,
+      url,
+      title,
+      type,
+      description,
+      thumbnail_url,
+      content,
+      category_id,
+      tags,
+      summary
+    FROM captures
+    WHERE id = $1;
+    `,
+    [captureId],
+  );
+
+  return result.rows[0] ?? null;
 }
 

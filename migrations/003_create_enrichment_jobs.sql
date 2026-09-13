@@ -5,6 +5,15 @@ CREATE TABLE enrichment_jobs (
         REFERENCES captures(id)
         ON DELETE CASCADE,
 
+    type TEXT NOT NULL
+        CHECK (
+            type IN (
+                'ingestion',
+                'categorization',
+                'summary'
+            )
+        ),
+
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (
             status IN (
@@ -26,8 +35,8 @@ CREATE TABLE enrichment_jobs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT enrichment_jobs_capture_unique
-        UNIQUE (capture_id)
+    CONSTRAINT enrichment_jobs_capture_type_unique
+        UNIQUE (capture_id, type)
 );
 
 CREATE INDEX enrichment_jobs_pending_idx

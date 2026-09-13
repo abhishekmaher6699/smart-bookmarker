@@ -60,7 +60,7 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
       );
     }
 
-    await createEnrichmentJob(capture.id, client);
+    await createEnrichmentJob(capture.id, "ingestion", client);
 
     await client.query("COMMIT");
 

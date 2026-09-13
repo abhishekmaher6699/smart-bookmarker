@@ -1,23 +1,29 @@
 import { pool } from "../../../db/client.js";
 import type { Pool, PoolClient } from "pg";
 
+export type EnrichmentJobType =
+  | "ingestion"
+  | "categorization"
+  | "summary";
 
 
 export async function createEnrichmentJob(
     captureId: string,
+    type: EnrichmentJobType,
     db: Pool | PoolClient = pool,
 ) {
     const result = await db.query(
         `
         INSERT INTO enrichment_jobs (
-            capture_id
+            capture_id,
+            type
         )
-        VALUES ($1)
-        ON CONFLICT (capture_id)
+        VALUES ($1, $2)
+        ON CONFLICT (capture_id, type)
         DO NOTHING
         RETURNING *;
         `,
-        [captureId]
+        [captureId, type]
     );
 
     return result.rows[0] ?? null;
@@ -25,6 +31,7 @@ export async function createEnrichmentJob(
 
 export async function retryFailedEnrichmentJob(
     captureId: string,
+    type: EnrichmentJobType = "ingestion",
 ) {
     const result = await pool.query(
         `
@@ -38,10 +45,11 @@ export async function retryFailedEnrichmentJob(
             last_error = NULL,
             updated_at = NOW()
         WHERE capture_id = $1
+          AND type = $2
           AND status = 'failed'
         RETURNING *;
         `,
-        [captureId],
+        [captureId, type],
     );
 
     return result.rows[0] ?? null;

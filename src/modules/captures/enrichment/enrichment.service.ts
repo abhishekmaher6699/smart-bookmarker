@@ -20,15 +20,18 @@ import {
 
 import { findBrowserSource } from "../capture-source.repository.js";
 
-export async function enrichCapture(
+import { findCaptureForEnrichment } from "../capture.repository.js";
+
+
+
+
+export async function runIngestionJob(
   captureId: string,
-  userId: string,
   url: string,
 ) {
   const browserSource = await findBrowserSource(captureId);
 
   const hasBrowserContent = Boolean(browserSource?.content?.trim());
-
   const hasBrowserHtml = Boolean(browserSource?.html?.trim());
 
   let metadata;
@@ -70,36 +73,59 @@ export async function enrichCapture(
     type: metadata.type,
   });
 
-  
-  if (metadata.type === "image") {
-    logger.info("Image capture requires no enrichment", {
-      captureId,
-    });
+  await updateCaptureEnrichment(captureId, {
+    title: metadata.title ?? null,
+    type: metadata.type ?? null,
+    description: metadata.description ?? null,
+    thumbnailUrl: metadata.imageUrl ?? null,
 
-    return await updateCaptureEnrichment(captureId, {
-      title: metadata.title ?? null,
-      type: metadata.type,
-      description: metadata.description ?? null,
-      thumbnailUrl: metadata.imageUrl ?? null,
-      content: null,
-      categoryId: null,
-      tags: null,
-    });
+    // Images don't need textual content.
+    content:
+      metadata.type === "image"
+        ? null
+        : metadata.content ?? null,
+
+    categoryId: null,
+    tags: null,
+  });
+
+  return {
+    type: metadata.type,
+    requiresAiEnrichment: metadata.type !== "image",
+  };
+}
+
+
+
+export async function runCategorizationJob(
+  captureId: string,
+  userId: string,
+) {
+  const capture = await findCaptureForEnrichment(captureId);
+
+  if (!capture) {
+    throw new Error(`Capture ${captureId} not found`);
   }
+
+  logger.info("Starting capture categorization", {
+    captureId,
+  });
 
   const existingCategories = await getCategories(userId);
 
-  logger.info("Loaded categories for enrichment", {
+  logger.info("Loaded categories for categorization", {
     captureId,
     categoryCount: existingCategories.length,
   });
 
   const categorization = await categorizeBookmark({
-    title: metadata.title ?? null,
-    description: metadata.description ?? null,
-    type: metadata.type ?? null,
-    content: metadata.content ?? null,
-    categories: existingCategories.map((category) => category.name),
+    title: capture.title ?? null,
+    description: capture.description ?? null,
+    type: capture.type ?? null,
+    content: capture.content ?? null,
+    categories: existingCategories.map(
+      (category) => category.name,
+    ),
   });
 
   logger.info("Capture categorized", {
@@ -113,12 +139,6 @@ export async function enrichCapture(
     categorization.category.trim(),
   );
 
-  logger.info("Category assigned to capture", {
-    captureId,
-    categoryId: category.id,
-    category: category.name,
-  });
-
   const tags = [
     ...new Set(
       categorization.tags
@@ -127,37 +147,52 @@ export async function enrichCapture(
     ),
   ].slice(0, 5);
 
-  let updated = await updateCaptureEnrichment(captureId, {
-    title: metadata.title ?? null,
-    type: metadata.type ?? null,
-    description: metadata.description ?? null,
-    thumbnailUrl: metadata.imageUrl ?? null,
-    content: metadata.content ?? null,
+  const updated = await updateCaptureEnrichment(captureId, {
+    title: capture.title ?? null,
+    type: capture.type ?? null,
+    description: capture.description ?? null,
+    thumbnailUrl: capture.thumbnail_url ?? null,
+    content: capture.content ?? null,
     categoryId: category.id,
     tags,
   });
 
-  // Summary is secondary.
-  try {
-    const summary = await summarizeCapture({
-      title: metadata.title ?? null,
+  logger.info("Capture categorization complete", {
+    captureId,
+    categoryId: category.id,
+    category: category.name,
+  });
 
-      content: metadata.content ?? null,
-    });
+  return updated;
 
-    const summaryUpdated = await updateCaptureSummary(captureId, summary);
+}
 
-    if (summaryUpdated) {
-      updated = summaryUpdated;
-    }
-  } catch (error) {
-    logger.warn("Summary generation failed", {
-      captureId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+
+
+export async function runSummaryJob(
+  captureId: string,
+) {
+  const capture = await findCaptureForEnrichment(captureId);
+
+  if (!capture) {
+    throw new Error(`Capture ${captureId} not found`);
   }
 
-  logger.info("Capture enrichment complete", {
+  logger.info("Starting capture summarization", {
+    captureId,
+  });
+
+  const summary = await summarizeCapture({
+    title: capture.title ?? null,
+    content: capture.content ?? null,
+  });
+
+  const updated = await updateCaptureSummary(
+    captureId,
+    summary,
+  );
+
+  logger.info("Capture summary complete", {
     captureId,
   });
 
