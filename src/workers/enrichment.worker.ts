@@ -22,7 +22,7 @@ let lastRecovery = 0;
 let isShuttingDown = false;
 let currentJobPromise: Promise<boolean> | null = null;
 
-const JOB_TIMEOUT = 2 * 60 * 1000; 
+const JOB_TIMEOUT = 2 * 60 * 1000;
 const RATE_LIMIT_RETRY_DELAY = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -33,10 +33,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
         reject(new Error(`Enrichment timed out after ${timeoutMs / 1000}s`));
       }, timeoutMs);
     }),
-
   ]);
 }
-
 
 async function processEnrichmentJob(job: {
   type: "ingestion" | "categorization" | "summary";
@@ -46,10 +44,7 @@ async function processEnrichmentJob(job: {
 }) {
   switch (job.type) {
     case "ingestion": {
-      const result = await runIngestionJob(
-        job.capture_id,
-        job.url,
-      );
+      const result = await runIngestionJob(job.capture_id, job.url);
 
       if (result.requiresAiEnrichment) {
         await createEnrichmentJob(job.capture_id, "categorization");
@@ -57,20 +52,13 @@ async function processEnrichmentJob(job: {
       }
 
       return result;
-
     }
 
-
     case "categorization":
-      return runCategorizationJob(
-        job.capture_id,
-        job.user_id,
-      );
+      return runCategorizationJob(job.capture_id, job.user_id);
 
     case "summary":
-      return runSummaryJob(
-        job.capture_id,
-      );
+      return runSummaryJob(job.capture_id);
 
     default:
       throw new Error(`Unknown enrichment job type: ${job.type}`);
@@ -87,12 +75,20 @@ async function processNextJob() {
   logger.info("Processing enrichment job", { jobId: job.id });
 
   try {
-    await withTimeout(
-      processEnrichmentJob(job),
-      JOB_TIMEOUT,
-    );
+    await withTimeout(processEnrichmentJob(job), JOB_TIMEOUT);
+    const completedJob = await completeEnrichmentJob(job.id, job.lease_id);
 
-    await completeEnrichmentJob(job.id);
+    if (!completedJob) {
+      logger.warn("Job completion rejected because lease was lost", {
+        jobId: job.id,
+      });
+
+      return true;
+    }
+
+    logger.info("Enrichment job completed", {
+      jobId: job.id,
+    });
 
     logger.info("Enrichment job completed", { jobId: job.id });
   } catch (error) {
@@ -104,12 +100,19 @@ async function processNextJob() {
       error: error instanceof Error ? error.message : String(error),
     });
 
-    await failEnrichmentJob(
+    const failedJob = await failEnrichmentJob(
       job.id,
+      job.lease_id,
       error instanceof Error ? error.message : String(error),
       job.attempts,
       rateLimited ? RATE_LIMIT_RETRY_DELAY : undefined,
     );
+
+    if (!failedJob) {
+      logger.warn("Job failure update rejected because lease was lost", {
+        jobId: job.id,
+      });
+    }
   }
 
   return true;

@@ -31,6 +31,8 @@ CREATE TABLE enrichment_jobs (
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     last_error TEXT,
+    lease_id UUID,
+    lease_until  TIMESTAMPTZ,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -66,6 +66,7 @@ export async function claimNextEnrichmentJob() {
             SELECT 
                 ej.id,
                 ej.capture_id,
+                ej.type,
                 c.user_id,
                 c.url
             FROM enrichment_jobs ej
@@ -93,6 +94,8 @@ export async function claimNextEnrichmentJob() {
                 status = 'processing',
                 attempts = attempts + 1,
                 started_at = NOW(),
+                lease_id = gen_random_uuid(),
+                lease_until = NOW() + INTERVAL '5 minutes',
                 updated_at = NOW()
             WHERE id = $1
             RETURNING *;
@@ -117,6 +120,7 @@ export async function claimNextEnrichmentJob() {
 
 export async function completeEnrichmentJob(
     jobId: string,
+    leaseId: string,
 ) {
     const result = await pool.query(
         `
@@ -124,11 +128,15 @@ export async function completeEnrichmentJob(
         SET
             status = 'completed',
             completed_at = NOW(),
+            lease_id = NULL,
+            lease_until = NULL,
             updated_at = NOW()
         WHERE id = $1
+            AND status = 'processing'
+            AND lease_id = $2            
         RETURNING *;
         `,
-        [jobId],
+        [jobId, leaseId],
     );
 
     return result.rows[0] ?? null;
@@ -151,6 +159,7 @@ function getRetryDelay(attempt: number) {
 
 export async function failEnrichmentJob(
     jobId: string,
+    leaseId: string,
     error: string,
     attempts : number,
     retryDelayMs?: number,
@@ -169,8 +178,12 @@ export async function failEnrichmentJob(
             available_at = $2,
             last_error = $3,
             started_at = NULL,
+            lease_id = NULL,
+            lease_until = NULL,
             updated_at = NOW()
         WHERE id = $4
+            AND status = 'processing'
+            AND lease_id = $5
         RETURNING *;
         `,
         [
@@ -185,6 +198,7 @@ export async function failEnrichmentJob(
             ),
             error,
             jobId, 
+            leaseId
         ],
     );
 
@@ -200,9 +214,11 @@ export async function recoverStuckEnrichmentJobs() {
             status = 'pending',
             available_at = NOW(),
             started_at = NULL,
+            lease_id = NULL,
+            lease_until = NULL,
             updated_at = NOW()
         WHERE status = 'processing'
-          AND started_at < NOW() - INTERVAL '10 minutes'
+          AND lease_until < NOW()
         RETURNING *;
         `,
     );
