@@ -67,3 +67,20 @@ export async function deleteCategory(
 
   return result.rows[0] ?? null;
 }
+
+export async function findCategoryById(
+  categoryId: string,
+  userId: string,
+) {
+  const result = await pool.query(
+    `
+    SELECT *
+    FROM capture_categories
+    WHERE id = $1
+      AND user_id = $2;
+    `,
+    [categoryId, userId],
+  );
+
+  return result.rows[0] ?? null;
+}

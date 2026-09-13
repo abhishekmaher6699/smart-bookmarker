@@ -17,6 +17,8 @@ import {
 } from "./enrichment/enrichment-job.repository.js";
 import { pool } from "../../db/client.js";
 import { insertBrowserSource } from "./capture-source.repository.js";
+import { AppError } from "../../errors/app-error.js";
+import { findCategoryById } from "../categories/category.repository.js";
 
 export async function createCapture(userId: string, input: CreateCaptureInput) {
   const existingCapture = await findCaptureByUrl(userId, input.url);
@@ -124,8 +126,17 @@ export async function updateCapture(
   userId: string,
   input: UpdateCaptureInput,
 ) {
+  if (input.categoryId !== undefined && input.categoryId !== null) {
+    const category = await findCategoryById(input.categoryId, userId);
+
+    if (!category) {
+      throw new AppError(404, "Category not found");
+    }
+  }
+
   return updateCaptureById(captureId, userId, input);
 }
+
 
 export async function deleteCapture(captureId: string, userId: string) {
   return deleteCaptureById(captureId, userId);

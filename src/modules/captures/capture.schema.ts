@@ -5,7 +5,10 @@ export const createCaptureSchema = z.object({
 
   title: z.string().trim().min(1).nullable().optional(),
 
-  type: z.enum(["article", "video", "pdf", "image", "github"]).nullable().optional(),
+  type: z
+    .enum(["article", "video", "pdf", "image", "github"])
+    .nullable()
+    .optional(),
 
   browserData: z
     .object({
@@ -55,6 +58,7 @@ export const listCapturesByUserSchema = z.object({
 export const updateCaptureSchema = z
   .object({
     url: z.url().optional(),
+    categoryId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).nullable().optional(),
     type: z
       .enum(["article", "video", "image", "github", "pdf"])
