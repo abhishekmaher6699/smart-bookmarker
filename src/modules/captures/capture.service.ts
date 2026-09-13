@@ -12,7 +12,8 @@ import type {
 } from "./capture.schema.js";
 import {
   createEnrichmentJob,
-  retryFailedEnrichmentJob,
+  retryFailedEnrichmentJobs,
+  type EnrichmentJobType,
 } from "./enrichment/enrichment-job.repository.js";
 import { pool } from "../../db/client.js";
 import { insertBrowserSource } from "./capture-source.repository.js";
@@ -109,13 +110,13 @@ export async function retryCaptureEnrichment(
     return { status: "not_found" as const };
   }
 
-  const job = await retryFailedEnrichmentJob(captureId);
+  const jobs = await retryFailedEnrichmentJobs(captureId);
 
-  if (!job) {
+  if (jobs.length === 0) {
     return { status: "not_retryable" as const };
   }
 
-  return { status: "queued" as const, job };
+  return { status: "queued" as const, jobs };
 }
 
 export async function updateCapture(

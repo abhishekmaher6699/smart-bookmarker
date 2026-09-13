@@ -29,30 +29,30 @@ export async function createEnrichmentJob(
     return result.rows[0] ?? null;
 }
 
-export async function retryFailedEnrichmentJob(
-    captureId: string,
-    type: EnrichmentJobType = "ingestion",
+export async function retryFailedEnrichmentJobs(
+  captureId: string,
 ) {
-    const result = await pool.query(
-        `
-        UPDATE enrichment_jobs
-        SET
-            status = 'pending',
-            attempts = 0,
-            available_at = NOW(),
-            started_at = NULL,
-            completed_at = NULL,
-            last_error = NULL,
-            updated_at = NOW()
-        WHERE capture_id = $1
-          AND type = $2
-          AND status = 'failed'
-        RETURNING *;
-        `,
-        [captureId, type],
-    );
+  const result = await pool.query(
+    `
+    UPDATE enrichment_jobs
+    SET
+      status = 'pending',
+      attempts = 0,
+      available_at = NOW(),
+      started_at = NULL,
+      completed_at = NULL,
+      last_error = NULL,
+      lease_id = NULL,
+      lease_until = NULL,
+      updated_at = NOW()
+    WHERE capture_id = $1
+      AND status = 'failed'
+    RETURNING *;
+    `,
+    [captureId],
+  );
 
-    return result.rows[0] ?? null;
+  return result.rows;
 }
 
 export async function claimNextEnrichmentJob() {

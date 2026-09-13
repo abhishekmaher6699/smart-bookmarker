@@ -138,7 +138,7 @@ export async function retryCaptureEnrichmentHandler(
             throw new AppError(409, "Enrichment job is not failed");
         }
 
-        res.status(202).json({ data: result.job });
+        res.status(202).json({ data: result.jobs });
     } catch (error) {
         next(error);
     }

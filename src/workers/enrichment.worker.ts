@@ -89,8 +89,6 @@ async function processNextJob() {
     logger.info("Enrichment job completed", {
       jobId: job.id,
     });
-
-    logger.info("Enrichment job completed", { jobId: job.id });
   } catch (error) {
     const rateLimited = isGeminiRateLimitError(error);
 
