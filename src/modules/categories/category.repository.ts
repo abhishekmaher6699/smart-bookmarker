@@ -29,3 +29,41 @@ export async function listCategoriesByUser(userId: string) {
 
   return result.rows;
 }
+
+export async function updateCategory(
+  categoryId: string,
+  userId: string,
+  name: string,
+) {
+  const result = await pool.query(
+    `
+    UPDATE capture_categories
+    SET
+      name = $1,
+      updated_at = NOW()
+    WHERE id = $2
+      AND user_id = $3
+    RETURNING *;
+    `,
+    [name.trim(), categoryId, userId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function deleteCategory(
+  categoryId: string,
+  userId: string,
+) {
+  const result = await pool.query(
+    `
+    DELETE FROM capture_categories
+    WHERE id = $1
+      AND user_id = $2
+    RETURNING *;
+    `,
+    [categoryId, userId],
+  );
+
+  return result.rows[0] ?? null;
+}
