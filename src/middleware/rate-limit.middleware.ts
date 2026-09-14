@@ -29,8 +29,8 @@ export const RATE_LIMITS = {
   },
 
   captureCreate: {
-    capacity: 2,
-    refillRate: 2 / 60,
+    capacity: 10,
+    refillRate: 10 / 60,
   },
 } satisfies Record<string, RateLimitPolicy>;
 

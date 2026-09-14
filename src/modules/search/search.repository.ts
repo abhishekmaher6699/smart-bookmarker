@@ -1,6 +1,5 @@
 import { pool } from "../../db/client.js";
 
-
 export async function findSearchResults(
   userId: string,
   limit: number,
@@ -11,7 +10,8 @@ export async function findSearchResults(
   tag?: string,
   sort: "newest" | "oldest" = "newest",
 ) {
-  const values: unknown[] = [userId];
+  const values: unknown[] = [userId, search ?? ""];
+  const searchParam = 2;
 
   let categoryFilter = "";
   let searchFilter = "";
@@ -27,14 +27,10 @@ export async function findSearchResults(
   }
 
   if (search) {
-    values.push(`%${search}%`);
-
     searchFilter = `
-            AND (
-                c.title ILIKE $${values.length}
-                OR c.description ILIKE $${values.length}
-                OR c.url ILIKE $${values.length}
-                OR c.content ILIKE $${values.length}
+            AND csd.search_document @@ websearch_to_tsquery(
+              'english', 
+              $${searchParam}
             )
         `;
   }
@@ -56,6 +52,9 @@ export async function findSearchResults(
   }
 
   const orderDirection = sort === "oldest" ? "ASC" : "DESC";
+  const orderBy = search
+    ? `search_rank DESC, c.created_at ${orderDirection}`
+    : `c.created_at ${orderDirection}`;
 
   const filterValues = [...values];
 
@@ -81,16 +80,38 @@ export async function findSearchResults(
             cc.name AS category,
             c.tags,
             c.created_at,
-            c.updated_at
+            c.updated_at,
+            CASE
+              WHEN $${searchParam} <> ''
+              THEN ts_rank(
+                ARRAY[1.0, 0.8, 0.5, 0.2],
+                csd.search_document,
+                websearch_to_tsquery('english', $${searchParam})
+              )
+              ELSE 0
+             END AS search_rank, 
+
+            CASE
+              WHEN $${searchParam} <> ''
+              THEN ts_headline(
+                'english',
+                COALESCE(c.content, c.description, c.title, ''),
+                websearch_to_tsquery('english', $${searchParam}),
+                'MaxWords=30, MinWords=15'
+              )
+              ELSE NULL
+            END AS search_snippet
         FROM captures c
         LEFT JOIN capture_categories cc
-            ON cc.id = c.category_id
+          ON cc.id = c.category_id
+        JOIN capture_search_documents csd
+          ON csd.capture_id = c.id
         WHERE c.user_id = $1
         ${categoryFilter}
         ${searchFilter}
         ${typeFilter}
         ${tagFilter}
-        ORDER BY c.created_at ${orderDirection}
+        ORDER BY ${orderBy}
         LIMIT $${limitParam}
         OFFSET $${offsetParam};
         `,
@@ -99,14 +120,18 @@ export async function findSearchResults(
 
   const countResult = await pool.query(
     `
-        SELECT COUNT(*) AS total
-        FROM captures c
-        WHERE c.user_id = $1
-        ${categoryFilter}
-        ${searchFilter}
-        ${typeFilter}
-        ${tagFilter}
-        `,
+    SELECT COUNT(*) AS total
+    FROM captures c
+    LEFT JOIN capture_categories cc
+      ON cc.id = c.category_id
+    JOIN capture_search_documents csd
+      ON csd.capture_id = c.id
+    WHERE c.user_id = $1
+    ${categoryFilter}
+    ${searchFilter}
+    ${typeFilter}
+    ${tagFilter}
+  `,
     filterValues,
   );
 

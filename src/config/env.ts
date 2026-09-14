@@ -7,7 +7,7 @@ export const env = {
   port: Number.parseInt(process.env.PORT ?? "3000", 10),
   databaseUrl: getOptionalEnv("DATABASE_URL"),
   geminiApiKey: getOptionalEnv("GEMINI_API_KEY"),
-  geminiModel: getOptionalEnv("GEMINI_MODEL") ?? "gemini-2.5-flash-lite",
+  geminiModel: getOptionalEnv("GEMINI_MODEL") ?? "gemini-3.1-flash-lite",
   geminiTimeoutMs: 12_000,
 } as const;
 

@@ -21,6 +21,7 @@ import {
 import { findBrowserSource } from "../capture-source.repository.js";
 
 import { findCaptureForEnrichment } from "../capture.repository.js";
+import { upsertSearchDocument } from "../../search/search-doc.repository.js";
 
 
 
@@ -156,6 +157,7 @@ export async function runCategorizationJob(
     categoryId: category.id,
     tags,
   });
+  await upsertSearchDocument(captureId);
 
   logger.info("Capture categorization complete", {
     captureId,
