@@ -28,13 +28,17 @@ export async function findSearchResults(
 
   if (search) {
     searchFilter = `
-            AND csd.search_document @@ websearch_to_tsquery(
-              'english', 
-              $${searchParam}
-            )
-        `;
+      AND (
+        csd.search_document @@ websearch_to_tsquery(
+          'english',
+          $${searchParam}
+        )
+        OR c.title %> $${searchParam}
+        OR c.description %> $${searchParam}
+      )
+    `;
   }
-
+  
   if (type) {
     values.push(type);
 
@@ -81,21 +85,39 @@ export async function findSearchResults(
             c.tags,
             c.created_at,
             c.updated_at,
+            
             CASE
               WHEN $${searchParam} <> ''
-              THEN ts_rank(
-                ARRAY[1.0, 0.8, 0.5, 0.2],
-                csd.search_document,
-                websearch_to_tsquery('english', $${searchParam})
-              )
+              THEN
+                CASE
+                  WHEN csd.search_document @@ websearch_to_tsquery(
+                    'english',
+                    $${searchParam}
+                  )
+                  THEN ts_rank(
+                    ARRAY[0.2, 0.5, 0.8, 1.0],
+                    csd.search_document,
+                    websearch_to_tsquery('english', $${searchParam})
+                  )
+                  ELSE GREATEST(
+                    word_similarity(
+                      $${searchParam},
+                      COALESCE(c.title, '')
+                    ),
+                    word_similarity(
+                      $${searchParam},
+                      COALESCE(c.description, '')
+                    )
+                  )
+                END
               ELSE 0
-             END AS search_rank, 
+            END AS search_rank,
 
             CASE
               WHEN $${searchParam} <> ''
               THEN ts_headline(
                 'english',
-                COALESCE(c.content, c.description, c.title, ''),
+                concat_ws(' ', c.title, c.description, c.content),
                 websearch_to_tsquery('english', $${searchParam}),
                 'MaxWords=30, MinWords=15'
               )
