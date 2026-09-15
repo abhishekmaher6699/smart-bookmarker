@@ -1,5 +1,5 @@
 import { generateQueryEmbedding } from "./search-embedding.js";
-import { findSearchResults, findSemanticSearchResults } from "./search.repository.js";
+import { findHybridSearchResults, findSearchResults, findSemanticSearchResults } from "./search.repository.js";
 
 export async function searchCaptures(
   userId: string,
@@ -37,5 +37,32 @@ export async function semanticSearchCaptures(
     queryEmbedding,
     limit,
     offset,
+  );
+}
+
+
+
+export async function hybridSearchCaptures(
+  userId: string,
+  query: string,
+  limit: number,
+  offset: number,
+  categoryIds?: string[],
+  type?: string,
+  tag?: string,
+  sort: "newest" | "oldest" = "newest",
+) {
+  const queryEmbedding = await generateQueryEmbedding(query);
+
+  return findHybridSearchResults(
+    userId,
+    query,
+    queryEmbedding,
+    limit,
+    offset,
+    categoryIds,
+    type,
+    tag,
+    sort,
   );
 }

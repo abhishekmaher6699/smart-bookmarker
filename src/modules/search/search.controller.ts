@@ -1,6 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../../errors/app-error.js";
-import { searchCaptures, semanticSearchCaptures } from "./search.service.js";
+import {
+  hybridSearchCaptures,
+  searchCaptures,
+  semanticSearchCaptures,
+} from "./search.service.js";
 import { searchCapturesSchema } from "./search.schema.js";
 
 export async function searchCapturesHandler(
@@ -34,6 +38,37 @@ export async function searchCapturesHandler(
         search,
         limit,
         offset,
+      );
+
+      const hasPrevious = offset > 0;
+      const hasNext = offset + captures.rows.length < captures.total;
+
+      return res.json({
+        data: captures.rows,
+        pagination: {
+          limit,
+          offset,
+          total: captures.total,
+          hasNext,
+          hasPrevious,
+        },
+      });
+    }
+
+    if (mode === "hybrid") {
+      if (!search) {
+        throw new AppError(400, "Search query is required for semantic search");
+      }
+
+      const captures = await hybridSearchCaptures(
+        userId,
+        search,
+        limit,
+        offset,
+        categoryIds,
+        type,
+        tag,
+        sort,
       );
 
       const hasPrevious = offset > 0;
