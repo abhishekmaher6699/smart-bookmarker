@@ -57,7 +57,7 @@ export async function searchCapturesHandler(
 
     if (mode === "hybrid") {
       if (!search) {
-        throw new AppError(400, "Search query is required for semantic search");
+        throw new AppError(400, "Search query is required for hybrid search");
       }
 
       const captures = await hybridSearchCaptures(

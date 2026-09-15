@@ -100,11 +100,11 @@ export async function findSearchResults(
                     websearch_to_tsquery('english', $${searchParam})
                   )
                   ELSE GREATEST(
-                    word_similarity(
+                    strict_word_similarity(
                       $${searchParam},
                       COALESCE(c.title, '')
                     ),
-                    word_similarity(
+                    strict_word_similarity(
                       $${searchParam},
                       COALESCE(c.description, '')
                     )
@@ -333,11 +333,11 @@ export async function findHybridSearchResults(
             )
 
             ELSE GREATEST(
-              word_similarity(
+              strict_word_similarity(
                 $${searchParam},
                 COALESCE(c.title, '')
               ),
-              word_similarity(
+              strict_word_similarity(
                 $${searchParam},
                 COALESCE(c.description, '')
               )
@@ -373,10 +373,14 @@ export async function findHybridSearchResults(
             1.0
           ) AS normalized_keyword_score,
 
+          /*
+           * Rescale vector cosine similarity (0.35-0.80)
+           * so baseline noise (~0.35) maps to 0.0.
+           */
           GREATEST(
             0.0,
             LEAST(
-              semantic_score,
+              (semantic_score - 0.35) / 0.45,
               1.0
             )
           ) AS normalized_semantic_score
@@ -411,6 +415,16 @@ export async function findHybridSearchResults(
 
       FROM normalized
 
+      WHERE (
+        normalized_keyword_score >= 0.20
+        OR normalized_semantic_score >= 0.40
+      )
+      AND (
+        0.40 * normalized_keyword_score
+        +
+        0.60 * normalized_semantic_score
+      ) >= 0.25
+
       ORDER BY
         hybrid_score DESC,
         created_at ${orderDirection}
@@ -421,7 +435,11 @@ export async function findHybridSearchResults(
     values,
   );
 
-  const countValues: unknown[] = [userId];
+  const countValues: unknown[] = [
+    userId,
+    search,
+    JSON.stringify(queryEmbedding),
+  ];
 
   let countCategoryFilter = "";
   let countTypeFilter = "";
@@ -453,19 +471,82 @@ export async function findHybridSearchResults(
 
   const countResult = await pool.query(
     `
+      WITH scored AS (
+        SELECT
+          CASE
+            WHEN csd.search_document @@ websearch_to_tsquery(
+              'english',
+              $${searchParam}
+            )
+            THEN ts_rank(
+              ARRAY[0.2, 0.5, 0.8, 1.0],
+              csd.search_document,
+              websearch_to_tsquery(
+                'english',
+                $${searchParam}
+              )
+            )
+
+            ELSE GREATEST(
+              strict_word_similarity(
+                $${searchParam},
+                COALESCE(c.title, '')
+              ),
+              strict_word_similarity(
+                $${searchParam},
+                COALESCE(c.description, '')
+              )
+            )
+          END AS keyword_score,
+
+          1 - (
+            csd.embedding <=> $${embeddingParam}::vector
+          ) AS semantic_score
+
+        FROM captures c
+
+        JOIN capture_search_documents csd
+          ON csd.capture_id = c.id
+
+        WHERE
+          c.user_id = $1
+          AND csd.embedding IS NOT NULL
+          ${countCategoryFilter}
+          ${countTypeFilter}
+          ${countTagFilter}
+      ),
+
+      normalized AS (
+        SELECT
+          LEAST(
+            keyword_score,
+            1.0
+          ) AS normalized_keyword_score,
+
+          GREATEST(
+            0.0,
+            LEAST(
+              (semantic_score - 0.35) / 0.45,
+              1.0
+            )
+          ) AS normalized_semantic_score
+
+        FROM scored
+      )
+
       SELECT COUNT(*) AS total
 
-      FROM captures c
+      FROM normalized
 
-      JOIN capture_search_documents csd
-        ON csd.capture_id = c.id
-
-      WHERE
-        c.user_id = $1
-        AND csd.embedding IS NOT NULL
-        ${countCategoryFilter}
-        ${countTypeFilter}
-        ${countTagFilter};
+      WHERE (
+        normalized_keyword_score >= 0.20
+        OR normalized_semantic_score >= 0.40
+      )
+      AND (
+        0.40 * normalized_keyword_score
+        +
+        0.60 * normalized_semantic_score
+      ) >= 0.25;
     `,
     countValues,
   );
