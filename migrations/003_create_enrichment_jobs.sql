@@ -10,7 +10,8 @@ CREATE TABLE enrichment_jobs (
             type IN (
                 'ingestion',
                 'categorization',
-                'summary'
+                'summary',
+                'embedding'
             )
         ),
 

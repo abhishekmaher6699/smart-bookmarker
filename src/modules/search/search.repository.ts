@@ -38,7 +38,7 @@ export async function findSearchResults(
       )
     `;
   }
-  
+
   if (type) {
     values.push(type);
 
@@ -155,6 +155,83 @@ export async function findSearchResults(
     ${tagFilter}
   `,
     filterValues,
+  );
+
+  return {
+    rows: result.rows,
+    total: Number(countResult.rows[0].total),
+  };
+}
+
+export async function findSemanticSearchResults(
+  userID: string,
+  queryEmbedding: number[],
+  limit: number,
+  offset: number,
+) {
+  const result = await pool.query(
+    `
+    SELECT
+        c.id,
+        c.user_id,
+        c.url,
+        c.title,
+        c.type,
+        c.description,
+        c.thumbnail_url,
+        c.content,
+        c.summary,
+        c.category_id,
+        cc.name AS category,
+        c.tags,
+        c.created_at,
+        c.updated_at,
+
+        1 - (
+          csd.embedding <=> $2::vector
+        ) AS semantic_score
+
+        FROM captures c
+
+        LEFT JOIN capture_categories cc
+          ON cc.id = c.category_id
+
+        JOIN capture_search_documents csd
+          ON csd.capture_id = c.id
+
+        WHERE
+          c.user_id = $1
+          AND csd.embedding IS NOT NULL
+          AND 1 - (
+            csd.embedding <=> $2::vector
+          ) >= 0.50
+        
+        ORDER BY csd.embedding <=> $2::vector ASC
+        
+        LIMIT $3
+        OFFSET $4;
+    `,
+    [userID, JSON.stringify(queryEmbedding), limit, offset],
+  );
+
+  const countResult = await pool.query(
+    `
+      SELECT COUNT(*) AS total
+
+      FROM captures c
+
+      JOIN capture_search_documents csd
+        ON csd.capture_id = c.id
+
+      WHERE
+        c.user_id = $1
+        AND csd.embedding IS NOT NULL
+        AND 1 - (
+          csd.embedding <=> $2::vector
+        ) >= 0.50
+        ;
+    `,
+    [userID, JSON.stringify(queryEmbedding)],
   );
 
   return {

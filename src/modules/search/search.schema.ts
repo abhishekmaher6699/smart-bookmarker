@@ -7,6 +7,7 @@ export const searchCapturesSchema = z.object({
   type: z.enum(["article", "video", "pdf", "image", "github"]).optional(),
   tag: z.string().trim().min(1).optional(),
   sort: z.enum(["newest", "oldest"]).default("newest"),
+  mode: z.enum(["keyword", "semantic"]).default("keyword"),
 
   categoryIds: z
     .string()

@@ -10,6 +10,7 @@ import {
   runIngestionJob,
   runCategorizationJob,
   runSummaryJob,
+  runEmbeddingJob,
 } from "../modules/captures/enrichment/enrichment.service.js";
 
 import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
@@ -37,7 +38,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 async function processEnrichmentJob(job: {
-  type: "ingestion" | "categorization" | "summary";
+  type: "ingestion" | "categorization" | "summary" | "embedding";
   capture_id: string;
   user_id: string;
   url: string;
@@ -59,6 +60,9 @@ async function processEnrichmentJob(job: {
 
     case "summary":
       return runSummaryJob(job.capture_id);
+
+    case "embedding":
+      return runEmbeddingJob(job.capture_id)
 
     default:
       throw new Error(`Unknown enrichment job type: ${job.type}`);

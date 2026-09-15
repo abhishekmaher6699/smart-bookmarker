@@ -52,3 +52,23 @@ export async function upsertSearchDocument(captureId: string) {
 
   return result.rows[0] ?? null;
 }
+
+
+export async function updateSearchEmbedding(
+    captureId: string,
+    embedding: number[]
+) {
+    const result = await pool.query(
+        `
+          UPDATE capture_search_documents
+          SET
+            embedding = $1::vector,
+            indexed_at = NOW()
+          WHERE capture_id = $2
+          RETURNING capture_id;
+        `,
+        [JSON.stringify(embedding), captureId]
+    )
+
+    return result.rows[0] ?? null
+}

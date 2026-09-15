@@ -9,6 +9,8 @@ export const env = {
   geminiApiKey: getOptionalEnv("GEMINI_API_KEY"),
   geminiModel: getOptionalEnv("GEMINI_MODEL") ?? "gemini-3.1-flash-lite",
   geminiTimeoutMs: 12_000,
+  geminiEmbeddingModel: getOptionalEnv("GEMINI_EMBEDDING_MODEL") ?? "gemini-embedding-2",
+  geminiEmbeddingDimensions: Number.parseInt(getOptionalEnv("GEMINI_EMBEDDING_DIMENSIONS") ?? "768", 10),
 } as const;
 
 export function requireEnv(value: string | undefined, name: string): string {

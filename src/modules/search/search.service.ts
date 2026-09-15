@@ -1,4 +1,5 @@
-import { findSearchResults } from "./search.repository.js";
+import { generateQueryEmbedding } from "./search-embedding.js";
+import { findSearchResults, findSemanticSearchResults } from "./search.repository.js";
 
 export async function searchCaptures(
   userId: string,
@@ -19,5 +20,22 @@ export async function searchCaptures(
     type,
     tag,
     sort,
+  );
+}
+
+
+export async function semanticSearchCaptures(
+  userId: string,
+  query: string,
+  limit: number,
+  offset: number,
+) {
+  const queryEmbedding = await generateQueryEmbedding(query);
+
+  return findSemanticSearchResults(
+    userId,
+    queryEmbedding,
+    limit,
+    offset,
   );
 }

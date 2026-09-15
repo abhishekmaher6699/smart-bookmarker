@@ -4,7 +4,8 @@ import type { Pool, PoolClient } from "pg";
 export type EnrichmentJobType =
   | "ingestion"
   | "categorization"
-  | "summary";
+  | "summary"
+  | "embedding";
 
 
 export async function createEnrichmentJob(

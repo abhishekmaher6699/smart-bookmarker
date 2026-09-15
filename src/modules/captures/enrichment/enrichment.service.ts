@@ -21,15 +21,15 @@ import {
 import { findBrowserSource } from "../capture-source.repository.js";
 
 import { findCaptureForEnrichment } from "../capture.repository.js";
-import { upsertSearchDocument } from "../../search/search-doc.repository.js";
+import {
+  updateSearchEmbedding,
+  upsertSearchDocument,
+} from "../../search/search-doc.repository.js";
+import { buildEmbeddingText } from "../../search/search-embedding.js";
+import { generateEmbedding } from "../../../integrations/gemini/embedder.js";
+import { createEnrichmentJob } from "./enrichment-job.repository.js";
 
-
-
-
-export async function runIngestionJob(
-  captureId: string,
-  url: string,
-) {
+export async function runIngestionJob(captureId: string, url: string) {
   const browserSource = await findBrowserSource(captureId);
 
   const hasBrowserContent = Boolean(browserSource?.content?.trim());
@@ -81,10 +81,7 @@ export async function runIngestionJob(
     thumbnailUrl: metadata.imageUrl ?? null,
 
     // Images don't need textual content.
-    content:
-      metadata.type === "image"
-        ? null
-        : metadata.content ?? null,
+    content: metadata.type === "image" ? null : (metadata.content ?? null),
 
     categoryId: null,
     tags: null,
@@ -96,12 +93,7 @@ export async function runIngestionJob(
   };
 }
 
-
-
-export async function runCategorizationJob(
-  captureId: string,
-  userId: string,
-) {
+export async function runCategorizationJob(captureId: string, userId: string) {
   const capture = await findCaptureForEnrichment(captureId);
 
   if (!capture) {
@@ -124,9 +116,7 @@ export async function runCategorizationJob(
     description: capture.description ?? null,
     type: capture.type ?? null,
     content: capture.content ?? null,
-    categories: existingCategories.map(
-      (category) => category.name,
-    ),
+    categories: existingCategories.map((category) => category.name),
   });
 
   logger.info("Capture categorized", {
@@ -157,7 +147,9 @@ export async function runCategorizationJob(
     categoryId: category.id,
     tags,
   });
-  await upsertSearchDocument(captureId);
+
+
+  await createEnrichmentJob(captureId, "embedding");
 
   logger.info("Capture categorization complete", {
     captureId,
@@ -166,14 +158,9 @@ export async function runCategorizationJob(
   });
 
   return updated;
-
 }
 
-
-
-export async function runSummaryJob(
-  captureId: string,
-) {
+export async function runSummaryJob(captureId: string) {
   const capture = await findCaptureForEnrichment(captureId);
 
   if (!capture) {
@@ -189,14 +176,50 @@ export async function runSummaryJob(
     content: capture.content ?? null,
   });
 
-  const updated = await updateCaptureSummary(
-    captureId,
-    summary,
-  );
+  const updated = await updateCaptureSummary(captureId, summary);
 
   logger.info("Capture summary complete", {
     captureId,
   });
 
   return updated;
+}
+
+
+
+export async function runEmbeddingJob(captureId: string) {
+  const capture = await findCaptureForEnrichment(captureId);
+
+  if (!capture) {
+    throw new Error(`Capture ${captureId} not found`);
+  }
+
+  const embeddingText = buildEmbeddingText({
+    title: capture.title,
+    description: capture.description,
+    tags: capture.tags,
+    content: capture.content,
+  });
+
+  if (!embeddingText.trim()) {
+    logger.info("Skipping embedding for empty capture", {
+      captureId,
+    });
+
+    return null;
+  }
+
+  logger.info("Starting capture embedding", {
+    captureId,
+  });
+
+  const embedding = await generateEmbedding(embeddingText);
+
+  await upsertSearchDocument(captureId);
+  await updateSearchEmbedding(captureId, embedding);
+
+  logger.info("Capture embedding complete", {
+    captureId,
+    dimensions: embedding.length,
+  });
 }
