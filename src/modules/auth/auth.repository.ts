@@ -235,3 +235,122 @@ export async function updatePasswordAndRevokeSessions(
     client.release();
   }
 }
+
+
+export async function createPasswordResetToken(
+  userId: string,
+  tokenHash: string,
+  expiresAt: Date,
+) {
+
+  const result = await pool.query(
+    `
+    INSERT INTO password_reset_tokens (
+      user_id,
+      token_hash,
+      expires_at
+    )
+    VALUES ($1, $2, $3)
+    RETURNING id;
+    `,
+    [userId, tokenHash, expiresAt],
+  )
+
+  return result.rows[0]
+}
+
+export async function findValidPasswordResetToken(
+  tokenHash: string,
+) {
+  const result = await pool.query(
+    `
+      SELECT id, user_id
+      FROM password_reset_tokens
+      WHERE token_hash = $1
+        AND used_at IS NULL
+        AND expires_at > NOW();
+    `,
+    [tokenHash],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function consumePasswordResetToken(
+  tokenId: string,
+) {
+  const result = await pool.query(
+    `
+      UPDATE password_reset_tokens
+      SET used_at = NOW()
+      WHERE id = $1
+        AND used_at IS NULL
+        AND expires_at > NOW()
+      RETURNING id, user_id;
+    `,
+    [tokenId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+
+export async function resetPasswordTransaction(
+  userId: string,
+  tokenId: string,
+  passwordHash: string,
+) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tokenResult = await client.query(
+      `
+        UPDATE password_reset_tokens
+        SET used_at = NOW()
+        WHERE id = $1
+          AND user_id = $2
+          AND used_at IS NULL
+          AND expires_at > NOW()
+        RETURNING id;
+      `,
+      [tokenId, userId],
+    );
+
+    if (tokenResult.rowCount !== 1) {
+      throw new Error("Invalid or expired reset token");
+    }
+
+    const userResult = await client.query(
+      `
+        UPDATE users
+        SET password = $1
+        WHERE id = $2
+        RETURNING id;
+      `,
+      [passwordHash, userId],
+    );
+
+    if (userResult.rowCount !== 1) {
+      throw new Error("User not found");
+    }
+
+    await client.query(
+      `
+        UPDATE refresh_tokens
+        SET revoked_at = NOW()
+        WHERE user_id = $1
+          AND revoked_at IS NULL;
+      `,
+      [userId],
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

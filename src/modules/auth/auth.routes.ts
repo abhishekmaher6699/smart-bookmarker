@@ -1,10 +1,12 @@
 import { Router } from "express";
 import {
   changePasswordHandler,
+  forgotPasswordHandler,
   loginHandler,
   logoutHandler,
   refreshTokenHandler,
   registerHandler,
+  resetPasswordHandler,
 } from "./auth.controller.js";
 import {
   RATE_LIMITS,
@@ -31,5 +33,17 @@ router.post(
 );
 router.post("/logout", logoutHandler);
 router.post("/change-password", authMiddleware, changePasswordHandler);
+
+router.post(
+  "/forgot-password",
+  rateLimit("forgotPassword", RATE_LIMITS.forgotPassword, "ip"),
+  forgotPasswordHandler,
+);
+
+router.post(
+  "/reset-password",
+  rateLimit("resetPassword", RATE_LIMITS.resetPassword, "ip"),
+  resetPasswordHandler,
+);
 
 export default router;

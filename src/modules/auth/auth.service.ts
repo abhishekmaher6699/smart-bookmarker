@@ -18,13 +18,18 @@ import {
   revokeRefreshTokenFamily,
   findUserById,
   updatePasswordAndRevokeSessions,
+  createPasswordResetToken,
+  findValidPasswordResetToken,
+  resetPasswordTransaction,
 } from "./auth.repository.js";
 import type {
   RegisterInput,
   LoginInput,
   ChangePasswordInput,
 } from "./auth.schema.js";
+import crypto from "node:crypto";
 import { randomUUID } from "node:crypto";
+import { generatePasswordResetToken } from "./password-reset-token.js";
 
 export async function registerUser(input: RegisterInput) {
   const email = input.email.trim().toLowerCase();
@@ -158,4 +163,38 @@ export async function changePassword(
   const passwordHash = await hashPassword(input.newPassword);
 
   await updatePasswordAndRevokeSessions(userId, passwordHash);
+}
+
+export async function forgotPassword(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await findUserByEmail(normalizedEmail);
+
+  if (user) {
+    const { token, tokenHash } = generatePasswordResetToken();
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await createPasswordResetToken(user.id, tokenHash, expiresAt);
+
+    console.log(`Password reset link: /reset-password?token=${token}`);
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const resetToken = await findValidPasswordResetToken(tokenHash);
+
+  if (!resetToken) {
+    throw new AppError(400, "Invalid or expired reset token");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  await resetPasswordTransaction(
+    resetToken.user_id,
+    resetToken.id,
+    passwordHash,
+  );
 }

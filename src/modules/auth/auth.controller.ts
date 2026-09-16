@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
-import { registerSchema, loginSchema, refreshTokenSchema, changePasswordSchema } from "./auth.schema.js"
-import { registerUser, loginUser, refreshAccessToken, logout, changePassword } from "./auth.service.js"
+import { registerSchema, loginSchema, refreshTokenSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.schema.js"
+import { registerUser, loginUser, refreshAccessToken, logout, changePassword, forgotPassword, resetPassword } from "./auth.service.js"
 import { z } from "zod"
 import { AppError } from "../../errors/app-error.js";
 
@@ -126,6 +126,62 @@ export async function changePasswordHandler(
     await changePassword(
       req.user.id,
       result.data,
+    );
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function forgotPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const result = forgotPasswordSchema.safeParse(req.body);
+
+    if (!result.success) {
+      res.status(400).json({
+        error: "Invalid request",
+        details: z.flattenError(result.error),
+      });
+      return;
+    }
+
+    await forgotPassword(result.data.email);
+
+    // Always return the same response.
+    // This prevents account enumeration.
+    res.status(200).json({
+      message:
+        "If the account exists, a password reset link has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const result = resetPasswordSchema.safeParse(req.body);
+
+    if (!result.success) {
+      res.status(400).json({
+        error: "Invalid request",
+        details: z.flattenError(result.error),
+      });
+      return;
+    }
+
+    await resetPassword(
+      result.data.token,
+      result.data.newPassword,
     );
 
     res.status(204).send();
