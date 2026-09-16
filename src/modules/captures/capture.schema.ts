@@ -1,14 +1,31 @@
 import { z } from "zod";
 
+
+const httpUrlSchema = z
+  .url()
+  .refine(
+    (value) => {
+      const protocol = new URL(value).protocol
+      return protocol === "http:" || protocol === "https:"
+    },
+    {
+      message: "Only HTTP and HTTPS URLs are allowed"
+    }
+  )
+
+
+const captureTypeSchema = z
+  .enum(["article", "video", "pdf", "image", "github"])
+  .nullable()
+  .optional();
+
+
 export const createCaptureSchema = z.object({
-  url: z.url(),
+  url: httpUrlSchema,
 
   title: z.string().trim().min(1).nullable().optional(),
 
-  type: z
-    .enum(["article", "video", "pdf", "image", "github"])
-    .nullable()
-    .optional(),
+  type: captureTypeSchema,
 
   browserData: z
     .object({
@@ -25,7 +42,7 @@ export const createCaptureSchema = z.object({
 
       description: z.string().trim().nullable().optional(),
 
-      thumbnailUrl: z.url().nullable().optional(),
+      thumbnailUrl: httpUrlSchema.nullable().optional(),
 
       selectedText: z.string().nullable().optional(),
     })
@@ -36,17 +53,19 @@ export const createCaptureSchema = z.object({
 
 export const updateCaptureSchema = z
   .object({
-    url: z.url().optional(),
+    url: httpUrlSchema.optional(),
     categoryId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(1).nullable().optional(),
-    type: z
-      .enum(["article", "video", "image", "github", "pdf"])
-      .nullable()
-      .optional(),
+    type: captureTypeSchema,
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Atleast one field is required",
   });
+
+
+export const captureIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
 
 export type CreateCaptureInput = z.infer<typeof createCaptureSchema>;
 export type UpdateCaptureInput = z.infer<typeof updateCaptureSchema>;

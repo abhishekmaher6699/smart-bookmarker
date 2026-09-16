@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 
-import { createCaptureSchema, updateCaptureSchema } from "./capture.schema.js";
+import { createCaptureSchema, updateCaptureSchema, captureIdParamSchema } from "./capture.schema.js";
 import { createCapture, deleteCapture, getCaptureById, retryCaptureEnrichment, updateCapture } from "./capture.service.js";
 import { AppError } from "../../errors/app-error.js";
 
@@ -38,10 +38,12 @@ export async function getCaptureHandler(
     next: NextFunction,
 ) {
     try {
-        const captureId = req.params.id
 
-        if (!captureId) {
-            throw new AppError(400, "Capture ID is required");
+        const params = captureIdParamSchema.safeParse(req.params)
+
+
+        if (!params.success) {
+            throw new AppError(400, "Capture ID is invalid");
         }
 
         if (!req.user) {
@@ -51,7 +53,7 @@ export async function getCaptureHandler(
         const userId = req.user.id
         
         const capture = await getCaptureById(
-            captureId,
+            params.data.id,
             userId
         )
 
@@ -74,17 +76,17 @@ export async function retryCaptureEnrichmentHandler(
     next: NextFunction,
 ) {
     try {
-        const captureId = req.params.id;
+    const params = captureIdParamSchema.safeParse(req.params);
 
-        if (!captureId) {
-            throw new AppError(400, "Capture ID is required");
-        }
+    if (!params.success) {
+      throw new AppError(400, "Invalid capture ID");
+    }
 
         if (!req.user) {
             throw new AppError(401, "Authentication required");
         }
 
-        const result = await retryCaptureEnrichment(captureId, req.user.id);
+        const result = await retryCaptureEnrichment(params.data.id, req.user.id);
 
         if (result.status === "not_found") {
             throw new AppError(404, "Capture not found");
@@ -106,10 +108,10 @@ export async function updateCaptureHandler(
   next: NextFunction,
 ) {
     try {
-        const captureId = req.params.id;
+        const params = captureIdParamSchema.safeParse(req.params);
 
-        if (!captureId) {
-            throw new AppError(400, "Capture ID is required");
+        if (!params.success) {
+        throw new AppError(400, "Invalid capture ID");
         }
 
         if (!req.user) {
@@ -125,7 +127,7 @@ export async function updateCaptureHandler(
         const userId = req.user.id
 
         const capture = await updateCapture(
-            captureId,
+            params.data.id,
             userId,
             result.data
         )

@@ -75,7 +75,6 @@ export async function createCapture(userId: string, input: CreateCaptureInput) {
   }
 }
 
-
 export async function getCaptureById(captureId: string, userId: string) {
   return findCaptureById(captureId, userId);
 }
@@ -112,9 +111,20 @@ export async function updateCapture(
     }
   }
 
+  if (input.url !== undefined) {
+    const existingCapture = await findCaptureByUrl(
+      userId,
+      input.url,
+      captureId,
+    );
+
+    if (existingCapture) {
+      throw new AppError(409, "A capture with this URL already exists");
+    }
+  }
+
   return updateCaptureById(captureId, userId, input);
 }
-
 
 export async function deleteCapture(captureId: string, userId: string) {
   return deleteCaptureById(captureId, userId);

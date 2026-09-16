@@ -81,7 +81,19 @@ export async function findCaptureById(captureId: string, userId: string) {
   return result.rows[0] ?? null;
 }
 
-export async function findCaptureByUrl(userId: string, url: string) {
+export async function findCaptureByUrl(userId: string, url: string, excludeCaptureId?: string,) {
+  
+  const values: unknown[] = [userId, url]
+
+  let excludeFilter = ""
+
+  if (excludeCaptureId) {
+    values.push(excludeCaptureId)
+
+    excludeFilter = "AND c.id <> $${values.length}"
+  }
+  
+  
   const result = await pool.query(
     `
         SELECT
@@ -103,9 +115,10 @@ export async function findCaptureByUrl(userId: string, url: string) {
         LEFT JOIN capture_categories cc
             ON cc.id = c.category_id
         WHERE c.user_id = $1
-          AND c.url = $2;
+          AND c.url = $2
+          ${excludeFilter};
         `,
-    [userId, url],
+    values,
   );
 
   return result.rows[0] ?? null;
