@@ -16,8 +16,14 @@ import {
   revokeRefreshToken,
   rotateRefreshToken,
   revokeRefreshTokenFamily,
+  findUserById,
+  updatePasswordAndRevokeSessions,
 } from "./auth.repository.js";
-import type { RegisterInput, LoginInput } from "./auth.schema.js";
+import type {
+  RegisterInput,
+  LoginInput,
+  ChangePasswordInput,
+} from "./auth.schema.js";
 import { randomUUID } from "node:crypto";
 
 export async function registerUser(input: RegisterInput) {
@@ -127,5 +133,29 @@ export async function logout(refreshToken: string) {
     return;
   }
 
-  await revokeRefreshTokenFamily(storedToken.family_id)
+  await revokeRefreshTokenFamily(storedToken.family_id);
+}
+
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+) {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    throw new AppError(401, "Authentication required");
+  }
+
+  const currentPasswordValid = await verifyPassword(
+    input.currentPassword,
+    user.password,
+  );
+
+  if (!currentPasswordValid) {
+    throw new AppError(400, "Current password is incorrect");
+  }
+
+  const passwordHash = await hashPassword(input.newPassword);
+
+  await updatePasswordAndRevokeSessions(userId, passwordHash);
 }

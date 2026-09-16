@@ -10,6 +10,19 @@ export async function findUserByEmail(email: string) {
   return result.rows[0] ?? null;
 }
 
+export async function findUserById(userId: string) {
+  const result = await pool.query(
+    `
+      SELECT id, email, password
+      FROM users
+      WHERE id = $1;
+    `,
+    [userId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function createUser(email: string, password: string) {
   const result = await pool.query(
     `
@@ -178,4 +191,47 @@ export async function revokeRefreshTokenFamily(familyId: string) {
     [familyId],
   );
   return result.rowCount;
+}
+
+export async function updatePasswordAndRevokeSessions(
+  userId: string,
+  passwordHash: string,
+) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const updatedUser = await client.query(
+      `
+      UPDATE users
+      SET password = $1
+      WHERE id = $2
+      RETURNING id;
+`,
+      [passwordHash, userId],
+    );
+
+    if (updatedUser.rowCount != 1) {
+      throw new Error("User not found");
+    }
+
+    await client.query(
+      `
+      UPDATE refresh_tokens
+      SET revoked_at = NOW()
+      WHERE user_id = $1
+        AND revoked_at IS NULL;
+      `,
+      [userId],
+    );
+
+    await client.query("COMMIT");
+    return updatedUser.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

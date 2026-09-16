@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express"
-import { registerSchema, loginSchema, refreshTokenSchema } from "./auth.schema.js"
-import { registerUser, loginUser, refreshAccessToken, logout } from "./auth.service.js"
+import { registerSchema, loginSchema, refreshTokenSchema, changePasswordSchema } from "./auth.schema.js"
+import { registerUser, loginUser, refreshAccessToken, logout, changePassword } from "./auth.service.js"
 import { z } from "zod"
+import { AppError } from "../../errors/app-error.js";
 
 
 export async function registerHandler(req: Request, res: Response, next: NextFunction) {
@@ -99,4 +100,36 @@ export async function logoutHandler(
     } catch (error) {
         next(error)
     }
+}
+
+export async function changePasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "Authentication required");
+    }
+
+    const result = changePasswordSchema.safeParse(req.body);
+
+    if (!result.success) {
+      res.status(400).json({
+        error: "Invalid request",
+        details: z.flattenError(result.error),
+      });
+
+      return;
+    }
+
+    await changePassword(
+      req.user.id,
+      result.data,
+    );
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
 }
