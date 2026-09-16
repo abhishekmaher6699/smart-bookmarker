@@ -86,24 +86,57 @@ export async function rotateRefreshToken(
 ) {
   const client = await pool.connect();
   try {
+    await client.query("BEGIN");
 
-    client.query("BEGIN")
-
-    const revoked = await client.query(
+    const tokenResult = await client.query(
       `
-        UPDATE refresh_tokens
-        SET revoked_at = NOW()
+        SELECT
+          id,
+          user_id,
+          family_id,
+          revoked_at,
+          expires_at
+        FROM refresh_tokens
         WHERE id = $1
-            AND user_id = $2
-            AND revoked_at IS NULL
-        RETURNING id;
-        `,
-      [oldTokenId, userId],
+          AND user_id = $2
+          AND family_id = $3
+        FOR UPDATE;
+      `,
+      [oldTokenId, userId, familyId],
     );
 
-    if (revoked.rowCount !== 1) {
-      throw new Error("Refresh token could no be revoked");
+    const token = tokenResult.rows[0];
+
+    if (!token) {
+      await client.query("ROLLBACK");
+      return {
+        status: "not_found" as const,
+      };
     }
+
+    if (token.revoked_at) {
+      await client.query("ROLLBACK");
+      return {
+        status: "already_revoked" as const,
+      };
+    }
+
+    if (new Date(token.expires_at) <= new Date()) {
+      await client.query("ROLLBACK");
+      return {
+        status: "expired" as const,
+      };
+    }
+
+    await client.query(
+      `
+      UPDATE refresh_tokens
+      SET revoked_at = NOW()
+      WHERE id = $1
+        AND revoked_at IS NULL;
+      `,
+      [oldTokenId],
+    );
 
     const created = await client.query(
       `
@@ -121,7 +154,10 @@ export async function rotateRefreshToken(
 
     await client.query("COMMIT");
 
-    return created.rows[0];
+    return {
+      status: "rotated" as const,
+      token: created.rows[0],
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -130,18 +166,16 @@ export async function rotateRefreshToken(
   }
 }
 
-export async function revokeRefreshTokenFamily(
-    familyId: string
-) {
-    const result = await pool.query(
-        `
+export async function revokeRefreshTokenFamily(familyId: string) {
+  const result = await pool.query(
+    `
         UPDATE refresh_tokens
         SET revoked_at = NOW()
         WHERE family_id = $1
             AND revoked_at IS NULL
         RETURNING id;
         `,
-    [familyId]
-    )
-    return result.rowCount
+    [familyId],
+  );
+  return result.rowCount;
 }
