@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express"
-import { registerSchema, loginSchema, refreshTokenSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.schema.js"
-import { registerUser, loginUser, refreshAccessToken, logout, changePassword, forgotPassword, resetPassword } from "./auth.service.js"
+import { registerSchema, loginSchema, refreshTokenSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from "./auth.schema.js"
+import { registerUser, loginUser, refreshAccessToken, logout, changePassword, forgotPassword, resetPassword, verifyEmail } from "./auth.service.js"
 import { z } from "zod"
 import { AppError } from "../../errors/app-error.js";
+import { error } from "node:console";
 
 
 export async function registerHandler(req: Request, res: Response, next: NextFunction) {
@@ -188,4 +189,32 @@ export async function resetPasswordHandler(
   } catch (error) {
     next(error);
   }
+}
+
+
+export async function verifyEmailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+
+    try {
+
+      const result = verifyEmailSchema.safeParse(req.body)
+
+      if (!result.success) {
+        res.status(400).json({
+          error: "Invalid request",
+          details: z.flattenError(result.error)
+        })
+
+        return
+      }
+
+      await verifyEmail(result.data.token)
+
+      res.status(204).send()
+    } catch (error) {
+      next(error)
+    }
 }

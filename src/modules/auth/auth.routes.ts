@@ -7,6 +7,7 @@ import {
   refreshTokenHandler,
   registerHandler,
   resetPasswordHandler,
+  verifyEmailHandler,
 } from "./auth.controller.js";
 import {
   RATE_LIMITS,
@@ -44,6 +45,12 @@ router.post(
   "/reset-password",
   rateLimit("resetPassword", RATE_LIMITS.resetPassword, "ip"),
   resetPasswordHandler,
+);
+
+router.post(
+  "/verify-email",
+  rateLimit("verifyEmail", RATE_LIMITS.verifyEmail, "ip"),
+  verifyEmailHandler,
 );
 
 export default router;

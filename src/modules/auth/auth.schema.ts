@@ -35,6 +35,12 @@ export const resetPasswordSchema = z
     newPassword: z.string().min(8),
   });
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
+export type VerifyEmailInput =
+  z.infer<typeof verifyEmailSchema>;
   
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

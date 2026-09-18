@@ -11,6 +11,9 @@ export const env = {
   geminiTimeoutMs: 12_000,
   geminiEmbeddingModel: getOptionalEnv("GEMINI_EMBEDDING_MODEL") ?? "gemini-embedding-2",
   geminiEmbeddingDimensions: Number.parseInt(getOptionalEnv("GEMINI_EMBEDDING_DIMENSIONS") ?? "768", 10),
+
+  resendApiKey: getOptionalEnv("RESEND_API_KEY"),
+  emailFrom: getOptionalEnv("EMAIL_FROM") ?? "onboarding@resend.dev",
 } as const;
 
 export function requireEnv(value: string | undefined, name: string): string {

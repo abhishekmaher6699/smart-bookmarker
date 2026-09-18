@@ -34,14 +34,19 @@ export const RATE_LIMITS = {
   },
 
   forgotPassword: {
-  capacity: 3,
-  refillRate: 3 / 10,
-},
+    capacity: 3,
+    refillRate: 3 / 10,
+  },
 
-resetPassword: {
-  capacity: 5,
-  refillRate: 5 / 10,
-},
+  resetPassword: {
+    capacity: 5,
+    refillRate: 5 / 10,
+  },
+
+  verifyEmail: {
+    capacity: 5,
+    refillRate: 5 / 10,
+  },
 } satisfies Record<string, RateLimitPolicy>;
 
 const TTL_SECONDS = 120;
@@ -138,7 +143,6 @@ export function rateLimit(
         Math.floor(Math.max(0, remainingTokens)),
       );
 
-
       if (!allowed) {
         const retryAfter = Math.ceil(1 / policy.refillRate);
         res.setHeader("Retry-After", retryAfter);
@@ -154,9 +158,9 @@ export function rateLimit(
         error: error instanceof Error ? error.message : String(error),
         policy: policyName,
         clientKey,
-      })
+      });
 
-      next()
+      next();
     }
   };
 }

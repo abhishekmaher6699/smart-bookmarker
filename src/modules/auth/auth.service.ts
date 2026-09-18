@@ -21,6 +21,9 @@ import {
   createPasswordResetToken,
   findValidPasswordResetToken,
   resetPasswordTransaction,
+  createEmailVerificationToken,
+  findValidEmailVerificationToken,
+  verifyEmailTransaction,
 } from "./auth.repository.js";
 import type {
   RegisterInput,
@@ -31,6 +34,7 @@ import crypto from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { generatePasswordResetToken } from "./password-reset-token.js";
 import { emailProvider } from "../../integrations/email/email.js";
+import { generateEmailVerificationToken } from "./email.verification-token.js";
 
 export async function registerUser(input: RegisterInput) {
   const email = input.email.trim().toLowerCase();
@@ -42,7 +46,15 @@ export async function registerUser(input: RegisterInput) {
 
   const passwordHash = await hashPassword(input.password);
 
-  return createUser(email, passwordHash);
+  const user = await createUser(email, passwordHash);
+
+  const { token, tokenHash } = generateEmailVerificationToken();
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await createEmailVerificationToken(user.id, tokenHash, expiresAt);
+
+  await emailProvider.sendEmailVerificationEmail(user.email, token);
 }
 
 export async function loginUser(input: LoginInput) {
@@ -178,10 +190,7 @@ export async function forgotPassword(email: string) {
 
     await createPasswordResetToken(user.id, tokenHash, expiresAt);
 
-   await emailProvider.sendPasswordResetEmail(
-    normalizedEmail,
-    token,
-  );
+    await emailProvider.sendPasswordResetEmail(normalizedEmail, token);
   }
 }
 
@@ -201,4 +210,16 @@ export async function resetPassword(token: string, newPassword: string) {
     resetToken.id,
     passwordHash,
   );
+}
+
+export async function verifyEmail(token: string) {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const verificationToken = await findValidEmailVerificationToken(tokenHash);
+
+  if (!verificationToken) {
+    throw new AppError(400, "Invalid or expired verification token");
+  }
+
+  await verifyEmailTransaction(verificationToken.user_id, verificationToken.id);
 }
