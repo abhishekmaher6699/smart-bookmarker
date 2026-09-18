@@ -1,5 +1,5 @@
 import app from "./app.js";
-import { env } from "./config/env.js";
+import { env, validateEnvironment } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import {
   connectRedis,
@@ -8,6 +8,7 @@ import {
 import { disconnectDatabase } from "./db/client.js";
 
 async function start() {
+  validateEnvironment()
   await connectRedis();
 
   const server = app.listen(env.port, () => {

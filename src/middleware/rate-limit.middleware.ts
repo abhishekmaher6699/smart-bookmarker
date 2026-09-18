@@ -148,7 +148,7 @@ export function rateLimit(
         const retryAfter = Math.ceil(1 / policy.refillRate);
         res.setHeader("Retry-After", retryAfter);
 
-        incrementMetric("rate_limit_rejections_total")
+        incrementMetric("rate_limit_rejections_total");
 
         return res.status(429).json({
           error: "Too many requests",
@@ -160,7 +160,6 @@ export function rateLimit(
       logger.error("Rate limiter Redis failure", {
         error: error instanceof Error ? error.message : String(error),
         policy: policyName,
-        clientKey,
       });
 
       next();

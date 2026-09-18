@@ -9,12 +9,20 @@ export function errorMiddleware(
     res: Response,
     next: NextFunction
 ) {
+
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+
     logger.error("Request failed", {
         requestId: req.requestId,
         method: req.method,
         path: req.originalUrl,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
     });
+
+    if (res.headersSent) {
+        return
+    }
 
     if (error instanceof AppError) {
         res.status(error.statusCode).json({
