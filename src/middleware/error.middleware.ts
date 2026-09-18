@@ -10,6 +10,7 @@ export function errorMiddleware(
     next: NextFunction
 ) {
     logger.error("Request failed", {
+        requestId: req.requestId,
         method: req.method,
         path: req.originalUrl,
         error: error instanceof Error ? error.message : String(error),
@@ -17,13 +18,15 @@ export function errorMiddleware(
 
     if (error instanceof AppError) {
         res.status(error.statusCode).json({
-            error: error.message
+            error: error.message,
+            requestId: req.requestId,
         })
         return
     }
 
     res.status(500).json({
         error: "Internal server error",
+        requestId: req.requestId,
     })
 
 }

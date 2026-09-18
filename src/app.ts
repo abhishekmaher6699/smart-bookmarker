@@ -6,11 +6,16 @@ import { errorMiddleware } from "./middleware/error.middleware.js"
 import { RATE_LIMITS, rateLimit } from "./middleware/rate-limit.middleware.js"
 import searchRoutes from "./modules/search/search.routes.js"
 import healthRoutes from "./routes/health.routes.js"
+import { requestIdMiddleware } from "./middleware/request-id.middleware.js"
+import { requestLoggingMiddleware } from "./middleware/request-logging.middleware.js"
 
 
 
 const app = express()
+
 app.disable("x-powered-by");
+app.use(requestIdMiddleware)
+app.use(requestLoggingMiddleware)
 
 app.use(express.json({
   limit: "5mb",
