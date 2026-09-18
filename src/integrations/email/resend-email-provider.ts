@@ -63,7 +63,7 @@ export class ResendEmailProvider implements EmailProvider {
     verificationToken: string,
   ): Promise<void> {
     const verificationUrl =
-      `http://localhost:3000/verify-email?token=${encodeURIComponent(
+      `http://localhost:3000/auth/verify-email?token=${encodeURIComponent(
         verificationToken,
       )}`;
 

@@ -218,3 +218,31 @@ export async function verifyEmailHandler(
       next(error)
     }
 }
+
+export async function verifyEmailLinkHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const token = req.query.token;
+
+    if (typeof token !== "string" || !token) {
+      res.status(400).send("Invalid verification link");
+      return;
+    }
+
+    await verifyEmail(token);
+
+    res.status(200).send(`
+      <html>
+        <body>
+          <h1>Email verified successfully</h1>
+          <p>Your email has been verified.</p>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    next(error);
+  }
+}

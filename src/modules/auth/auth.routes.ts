@@ -8,6 +8,7 @@ import {
   registerHandler,
   resetPasswordHandler,
   verifyEmailHandler,
+  verifyEmailLinkHandler,
 } from "./auth.controller.js";
 import {
   RATE_LIMITS,
@@ -51,6 +52,11 @@ router.post(
   "/verify-email",
   rateLimit("verifyEmail", RATE_LIMITS.verifyEmail, "ip"),
   verifyEmailHandler,
+);
+
+router.get(
+  "/verify-email",
+  verifyEmailLinkHandler,
 );
 
 export default router;
