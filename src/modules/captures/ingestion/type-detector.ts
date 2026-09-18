@@ -71,18 +71,7 @@ export function detectType(
 ): CaptureType | null {
   const mimeType = detectTypeFromContentType(contentType);
 
-  if (mimeType) {
-    console.log("TYPE: MIME", mimeType);
-    return mimeType;
-  }
-
   const urlType = detectTypeFromUrl(url);
-
-  console.log("TYPE: URL", {
-    url,
-    hostname: new URL(url).hostname,
-    urlType,
-  });
 
   if (urlType) {
     return urlType;
@@ -90,10 +79,6 @@ export function detectType(
 
   const metadataType = detectTypeFromMetadata(ogType);
 
-  console.log("TYPE: METADATA", {
-    ogType,
-    metadataType,
-  });
 
   if (metadataType) {
     return metadataType;
@@ -104,11 +89,6 @@ export function detectType(
       ?.split(";")[0]
       ?.trim()
       .toLowerCase();
-
-  if (normalizedContentType === "text/html") {
-    console.log("TYPE: HTML FALLBACK");
-    return "article";
-  }
 
   return null;
 }
