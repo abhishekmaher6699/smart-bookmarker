@@ -17,6 +17,7 @@ import { disconnectDatabase } from "../db/client.js";
 
 import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
 import { logger } from "../utils/logger.js";
+import { incrementMetric, recordJobDuration } from "../utils/metrics.js";
 
 const POLL_INTERVAL = 1000;
 const RECOVERY_INTERVAL = 60_000;
@@ -78,6 +79,8 @@ async function processNextJob() {
     return false;
   }
 
+  const jobStartedAt = Date.now();
+
   logger.info("Processing enrichment job", { jobId: job.id });
 
   try {
@@ -95,6 +98,9 @@ async function processNextJob() {
     logger.info("Enrichment job completed", {
       jobId: job.id,
     });
+
+    incrementMetric("jobs_completed_total");
+    recordJobDuration(Date.now() - jobStartedAt);
   } catch (error) {
     const rateLimited = isGeminiRateLimitError(error);
 
@@ -116,6 +122,12 @@ async function processNextJob() {
       logger.warn("Job failure update rejected because lease was lost", {
         jobId: job.id,
       });
+    } else {
+      incrementMetric("jobs_failed_total");
+
+      if (failedJob.status === "pending") {
+        incrementMetric("jobs_retried_total");
+      }
     }
   }
 

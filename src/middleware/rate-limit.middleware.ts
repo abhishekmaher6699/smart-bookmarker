@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { redis } from "../lib/redis.js";
 import { logger } from "../utils/logger.js";
+import { incrementMetric } from "../utils/metrics.js";
 
 export type RateLimitPolicy = {
   capacity: number;
@@ -146,6 +147,8 @@ export function rateLimit(
       if (!allowed) {
         const retryAfter = Math.ceil(1 / policy.refillRate);
         res.setHeader("Retry-After", retryAfter);
+
+        incrementMetric("rate_limit_rejections_total")
 
         return res.status(429).json({
           error: "Too many requests",
