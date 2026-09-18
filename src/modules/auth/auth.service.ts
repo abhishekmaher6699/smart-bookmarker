@@ -30,6 +30,7 @@ import type {
 import crypto from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { generatePasswordResetToken } from "./password-reset-token.js";
+import { emailProvider } from "../../integrations/email/email.js";
 
 export async function registerUser(input: RegisterInput) {
   const email = input.email.trim().toLowerCase();
@@ -177,7 +178,10 @@ export async function forgotPassword(email: string) {
 
     await createPasswordResetToken(user.id, tokenHash, expiresAt);
 
-    console.log(`Password reset link: /reset-password?token=${token}`);
+   await emailProvider.sendPasswordResetEmail(
+    normalizedEmail,
+    token,
+  );
   }
 }
 
