@@ -1,22 +1,46 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
-import { connectRedis, disconnectRedis } from "./lib/redis.js";
+import {
+  connectRedis,
+  disconnectRedis,
+} from "./lib/redis.js";
+import { disconnectDatabase } from "./db/client.js";
 
 async function start() {
   await connectRedis();
 
   const server = app.listen(env.port, () => {
-    logger.info("API server started", { port: env.port });
+    logger.info("API server started", {
+      port: env.port,
+    });
   });
 
+  let isShuttingDown = false;
+
   const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      return;
+    }
+
+    isShuttingDown = true;
+
     logger.info("Shutdown signal received", {
       signal,
     });
 
-    server.close(async () => {
+    server.close(async (error) => {
+      if (error) {
+        logger.error("HTTP server shutdown failed", {
+          error: error.message,
+        });
+
+        process.exit(1);
+        return;
+      }
+
       try {
+        await disconnectDatabase();
         await disconnectRedis();
 
         logger.info("Shutdown complete");
@@ -24,7 +48,10 @@ async function start() {
         process.exit(0);
       } catch (error) {
         logger.error("Shutdown failed", {
-          error: error instanceof Error ? error.message : String(error),
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error),
         });
 
         process.exit(1);
@@ -33,21 +60,21 @@ async function start() {
   };
 
   process.on("SIGTERM", () => {
-    void shutdown("SIGTERM")
-  })
+    void shutdown("SIGTERM");
+  });
 
-    process.on("SIGINT", () => {
+  process.on("SIGINT", () => {
     void shutdown("SIGINT");
   });
 }
 
-
 start().catch((error) => {
-    logger.error("Failed to start application", {
-        error: error instanceof Error
+  logger.error("Failed to start application", {
+    error:
+      error instanceof Error
         ? error.message
-        : String(error)
-    })
+        : String(error),
+  });
 
-    process.exit(1)
-})
+  process.exit(1);
+});

@@ -5,6 +5,9 @@ import categoryRoutes from "./modules/categories/category.routes.js"
 import { errorMiddleware } from "./middleware/error.middleware.js"
 import { RATE_LIMITS, rateLimit } from "./middleware/rate-limit.middleware.js"
 import searchRoutes from "./modules/search/search.routes.js"
+import healthRoutes from "./routes/health.routes.js"
+
+
 
 const app = express()
 app.disable("x-powered-by");
@@ -12,6 +15,9 @@ app.disable("x-powered-by");
 app.use(express.json({
   limit: "5mb",
 }));
+
+app.use(healthRoutes)
+
 app.use(rateLimit("global", RATE_LIMITS.global))
 
 app.use("/auth", authRouter)

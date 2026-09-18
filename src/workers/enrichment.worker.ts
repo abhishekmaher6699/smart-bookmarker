@@ -13,6 +13,8 @@ import {
   runEmbeddingJob,
 } from "../modules/captures/enrichment/enrichment.service.js";
 
+import { disconnectDatabase } from "../db/client.js";
+
 import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
 import { logger } from "../utils/logger.js";
 
@@ -62,7 +64,7 @@ async function processEnrichmentJob(job: {
       return runSummaryJob(job.capture_id);
 
     case "embedding":
-      return runEmbeddingJob(job.capture_id)
+      return runEmbeddingJob(job.capture_id);
 
     default:
       throw new Error(`Unknown enrichment job type: ${job.type}`);
@@ -137,15 +139,27 @@ async function shutdown(signal: string) {
 
   logger.info("Worker shutdown requested", { signal });
 
-  if (currentJobPromise) {
-    logger.info("Waiting for current job to finish");
+  try {
+    if (currentJobPromise) {
+      logger.info("Waiting for current job to finish");
 
-    await currentJobPromise;
+      await currentJobPromise;
+    }
+
+    logger.info("Worker stopped");
+
+    await disconnectDatabase();
+
+    logger.info("Worker shutdown complete");
+
+    process.exit(0);
+  } catch (error) {
+    logger.error("Worker shutdown failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    process.exit(1);
   }
-
-  logger.info("Worker stopped");
-
-  process.exit(0);
 }
 
 async function startWorker() {
@@ -187,4 +201,10 @@ process.on("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
 
-startWorker();
+startWorker().catch((error) => {
+  logger.error("Worker failed to start", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+
+  process.exit(1);
+});
