@@ -11,14 +11,22 @@ export function requestLoggingMiddleware(
   const start = Date.now();
 
   res.on("finish", () => {
+    const durationMs = Date.now() - start;
 
-    const durationMs = Date.now() - start
+    const labels = {
+      method: req.method,
+      route: req.route?.path ?? req.path,
+      status_code: String(res.statusCode),
+    };
 
-    incrementMetric("http_requests_total")
-    recordHttpDuration(durationMs)
+    if (req.path !== "/metrics") {
+      incrementMetric("http_requests_total", 1, labels);
 
-    if (res.statusCode >= 400) {
-        incrementMetric("http_errors_total")
+      if (res.statusCode >= 400) {
+        incrementMetric("http_errors_total", 1, labels);
+      }
+
+      recordHttpDuration(durationMs, labels);
     }
 
     logger.info("Request completed", {

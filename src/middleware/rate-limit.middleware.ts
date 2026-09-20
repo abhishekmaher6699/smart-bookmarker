@@ -148,7 +148,9 @@ export function rateLimit(
         const retryAfter = Math.ceil(1 / policy.refillRate);
         res.setHeader("Retry-After", retryAfter);
 
-        incrementMetric("rate_limit_rejections_total");
+        incrementMetric("rate_limit_rejections_total", 1, {
+          route: req.path,
+        });
 
         return res.status(429).json({
           error: "Too many requests",

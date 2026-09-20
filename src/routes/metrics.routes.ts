@@ -1,41 +1,20 @@
 import { Router } from "express";
 
-import { getMetrics } from "../utils/metrics.js";
+import {
+  getMetrics,
+  getMetricsContentType,
+} from "../utils/metrics.js";
 
 const router = Router();
 
-router.get("/metrics", (_req, res) => {
-  const metrics = getMetrics();
+router.get("/metrics", async (_req, res, next) => {
+  try {
+    res.setHeader("Content-Type", getMetricsContentType());
 
-  const averageHttpDurationMs =
-    metrics.http.requestsWithDuration > 0
-      ? metrics.http.totalDurationMs /
-        metrics.http.requestsWithDuration
-      : 0;
-
-  const averageJobDurationMs =
-    metrics.jobs.completedWithDuration > 0
-      ? metrics.jobs.totalDurationMs /
-        metrics.jobs.completedWithDuration
-      : 0;
-
-  res.status(200).json({
-    counters: metrics.counters,
-
-    http: {
-      ...metrics.http,
-      averageDurationMs: Number(
-        averageHttpDurationMs.toFixed(2),
-      ),
-    },
-
-    jobs: {
-      ...metrics.jobs,
-      averageCompletedDurationMs: Number(
-        averageJobDurationMs.toFixed(2),
-      ),
-    },
-  });
+    res.status(200).send(await getMetrics());
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

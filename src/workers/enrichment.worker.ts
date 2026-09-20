@@ -18,6 +18,10 @@ import { disconnectDatabase } from "../db/client.js";
 import { isGeminiRateLimitError } from "../integrations/gemini/gemini.client.js";
 import { logger } from "../utils/logger.js";
 import { incrementMetric, recordJobDuration } from "../utils/metrics.js";
+import {
+  startWorkerMetricsServer,
+  stopWorkerMetricsServer,
+} from "./worker-metrics.js";
 
 const POLL_INTERVAL = 1000;
 const RECOVERY_INTERVAL = 60_000;
@@ -81,15 +85,20 @@ async function processNextJob() {
 
   const jobStartedAt = Date.now();
 
-  logger.info("Processing enrichment job", { jobId: job.id });
+  logger.info("Processing enrichment job", {
+    jobId: job.id,
+    type: job.type,
+  });
 
   try {
     await withTimeout(processEnrichmentJob(job), JOB_TIMEOUT);
+
     const completedJob = await completeEnrichmentJob(job.id, job.lease_id);
 
     if (!completedJob) {
       logger.warn("Job completion rejected because lease was lost", {
         jobId: job.id,
+        type: job.type,
       });
 
       return true;
@@ -97,15 +106,18 @@ async function processNextJob() {
 
     logger.info("Enrichment job completed", {
       jobId: job.id,
+      type: job.type,
     });
 
-    incrementMetric("jobs_completed_total");
-    recordJobDuration(Date.now() - jobStartedAt);
+    incrementMetric("jobs_completed_total", 1, {
+      type: job.type,
+    });
   } catch (error) {
     const rateLimited = isGeminiRateLimitError(error);
 
     logger.error("Enrichment job failed", {
       jobId: job.id,
+      type: job.type,
       rateLimited,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -121,14 +133,23 @@ async function processNextJob() {
     if (!failedJob) {
       logger.warn("Job failure update rejected because lease was lost", {
         jobId: job.id,
+        type: job.type,
       });
     } else {
-      incrementMetric("jobs_failed_total");
+      incrementMetric("jobs_failed_total", 1, {
+        type: job.type,
+      });
 
       if (failedJob.status === "pending") {
-        incrementMetric("jobs_retried_total");
+        incrementMetric("jobs_retried_total", 1, {
+          type: job.type,
+        });
       }
     }
+  } finally {
+    recordJobDuration(Date.now() - jobStartedAt, {
+      type: job.type,
+    });
   }
 
   return true;
@@ -160,6 +181,7 @@ async function shutdown(signal: string) {
 
     logger.info("Worker stopped");
 
+    await stopWorkerMetricsServer();
     await disconnectDatabase();
 
     logger.info("Worker shutdown complete");
@@ -175,6 +197,7 @@ async function shutdown(signal: string) {
 }
 
 async function startWorker() {
+  startWorkerMetricsServer();
   logger.info("Enrichment worker started");
 
   while (!isShuttingDown) {
