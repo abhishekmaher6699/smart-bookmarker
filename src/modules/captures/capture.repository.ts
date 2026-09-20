@@ -90,7 +90,7 @@ export async function findCaptureByUrl(userId: string, url: string, excludeCaptu
   if (excludeCaptureId) {
     values.push(excludeCaptureId)
 
-    excludeFilter = "AND c.id <> $${values.length}"
+    excludeFilter = `AND c.id <> $${values.length}`
   }
   
   

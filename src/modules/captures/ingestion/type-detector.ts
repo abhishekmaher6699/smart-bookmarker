@@ -69,7 +69,6 @@ export function detectType(
   contentType: string | null,
   ogType: string | null,
 ): CaptureType | null {
-  const mimeType = detectTypeFromContentType(contentType);
 
   const urlType = detectTypeFromUrl(url);
 
@@ -83,12 +82,6 @@ export function detectType(
   if (metadataType) {
     return metadataType;
   }
-
-  const normalizedContentType =
-    contentType
-      ?.split(";")[0]
-      ?.trim()
-      .toLowerCase();
 
   return null;
 }

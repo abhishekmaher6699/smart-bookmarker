@@ -140,21 +140,63 @@ export async function findSearchResults(
     values,
   );
 
+  const countValues: unknown[] = [userId];
+
+  let countCategoryFilter = "";
+  let countSearchFilter = "";
+  let countTypeFilter = "";
+  let countTagFilter = "";
+
+  if (categoryIds?.length) {
+    countValues.push(categoryIds);
+    countCategoryFilter = `
+    AND c.category_id = ANY($${countValues.length}::uuid[])
+  `;
+  }
+
+  if (search) {
+    countValues.push(search);
+    countSearchFilter = `
+    AND (
+      csd.search_document @@ websearch_to_tsquery(
+        'english',
+        $${countValues.length}
+      )
+      OR c.title %> $${countValues.length}
+      OR c.description %> $${countValues.length}
+    )
+  `;
+  }
+
+  if (type) {
+    countValues.push(type);
+    countTypeFilter = `
+    AND c.type = $${countValues.length}
+  `;
+  }
+
+  if (tag) {
+    countValues.push(tag.toLowerCase());
+    countTagFilter = `
+    AND $${countValues.length} = ANY(c.tags)
+  `;
+  }
+
   const countResult = await pool.query(
     `
-    SELECT COUNT(*) AS total
-    FROM captures c
-    LEFT JOIN capture_categories cc
-      ON cc.id = c.category_id
-    JOIN capture_search_documents csd
-      ON csd.capture_id = c.id
-    WHERE c.user_id = $1
-    ${categoryFilter}
-    ${searchFilter}
-    ${typeFilter}
-    ${tagFilter}
+  SELECT COUNT(*) AS total
+  FROM captures c
+  LEFT JOIN capture_categories cc
+    ON cc.id = c.category_id
+  JOIN capture_search_documents csd
+    ON csd.capture_id = c.id
+  WHERE c.user_id = $1
+  ${countCategoryFilter}
+  ${countSearchFilter}
+  ${countTypeFilter}
+  ${countTagFilter}
   `,
-    filterValues,
+    countValues,
   );
 
   return {
@@ -251,12 +293,7 @@ export async function findHybridSearchResults(
   tag?: string,
   sort: "newest" | "oldest" = "newest",
 ) {
-
-  const values: unknown[] = [
-    userId,
-    search,
-    JSON.stringify(queryEmbedding),
-  ];
+  const values: unknown[] = [userId, search, JSON.stringify(queryEmbedding)];
 
   const searchParam = 2;
   const embeddingParam = 3;
@@ -289,15 +326,13 @@ export async function findHybridSearchResults(
     `;
   }
 
-  const orderDirection =
-    sort === "oldest" ? "ASC" : "DESC";
+  const orderDirection = sort === "oldest" ? "ASC" : "DESC";
 
   values.push(limit);
   const limitParam = values.length;
 
   values.push(offset);
   const offsetParam = values.length;
-
 
   const result = await pool.query(
     `

@@ -1,0 +1,1 @@
+process.env.RESEND_API_KEY = "test-resend-key";

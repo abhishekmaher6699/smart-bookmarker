@@ -5,3 +5,4 @@ dist/
 extension
 Roadmap.md
 TODO.md
+.env.test
