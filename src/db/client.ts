@@ -1,7 +1,5 @@
 import { Pool } from "pg";
 
-import { env, requireEnv } from "../config/env.js";
-
 const databaseUrl =
   process.env.NODE_ENV === "test"
     ? process.env.TEST_DATABASE_URL
@@ -10,7 +8,7 @@ const databaseUrl =
 if (!databaseUrl) {
   throw new Error(
     process.env.NODE_ENV === "test"
-      ? "TEST_DB_URL is not configured"
+      ? "TEST_DATABASE_URL is not configured"
       : "DATABASE_URL is not configured",
   );
 }

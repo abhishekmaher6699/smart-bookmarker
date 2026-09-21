@@ -8,5 +8,7 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
     },
+
+    setupFiles: ["./tests/setup.ts"],
   },
 });
