@@ -10,7 +10,7 @@
     "migrate": "node --env-file=.env --import=tsx/esm src/db/migrate.ts",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "test": "vitest run",
+    "test": "node --env-file=.env --import=tsx/esm ./node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest"
   },
   "dependencies": {
