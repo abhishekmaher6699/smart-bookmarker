@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TEST_DB_URL: ${{ secrets.TEST_DATABASE_URL }}
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
     steps:
