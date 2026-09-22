@@ -108,6 +108,6 @@ describe("errorMiddleware", () => {
       method: "GET",
       path: "/api/test",
       error: "Something failed",
-    });s
+    });
   });
 });
