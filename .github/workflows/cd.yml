@@ -22,9 +22,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./api
+          file: ./api/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/smart-bookmarker:latest
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./smart-bookmarker-web
+          file: ./smart-bookmarker-web/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/smart-bookmarker-web:latest
