@@ -107,7 +107,7 @@ describe("errorMiddleware", () => {
       requestId: "req-123",
       method: "GET",
       path: "/api/test",
-      error: "Something failed",
+      error: "Something failed!",
     });
   });
 });
