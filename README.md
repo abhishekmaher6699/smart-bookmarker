@@ -838,6 +838,13 @@ The backend includes a comprehensive test suite using **Vitest**:
 ```bash
 cd api
 
+# Start an isolated PostgreSQL + pgvector test database (first time only)
+cp .env.test.example .env.test
+npm run docker:test:up
+
+# Apply the schema to the isolated test database
+npm run migrate:test
+
 # Run all tests
 npm test
 
@@ -845,9 +852,14 @@ npm test
 npx vitest run tests/unit       # Unit tests
 npx vitest run tests/integration # Integration tests (requires test DB)
 npx vitest run tests/e2e         # E2E tests (requires test DB)
+
+# Stop and remove the isolated test database when finished
+npm run docker:test:down
 ```
 
-> **Note:** Integration and E2E tests require a `TEST_DATABASE_URL` environment variable pointing to a test PostgreSQL database.
+> **Note:** The test database is intentionally separate from development data. The supplied Compose setup exposes it on port `5433`, uses the `bookmarker_test` database, and enables pgvector. On Windows PowerShell, replace the `cp` command above with `Copy-Item .env.test.example .env.test`.
+
+Integration and E2E tests require `TEST_DATABASE_URL`. `api/.env.test.example` provides the expected local configuration; never point it at a development or production database because the test suites reset shared tables.
 
 ### Test Coverage
 - **Unit tests** — JWT signing/verification, password hashing, URL validation, content parsing, metadata normalization, type detection, auth middleware, error handling, search embeddings
@@ -951,8 +963,10 @@ The application uses **10 tables** managed via raw SQL migrations:
 
 ### Continuous Integration (`ci.yml`)
 Triggered on pushes and PRs to `main`:
-- **Backend:** Checkout → Install → TypeScript type check → Database connectivity check → Run Vitest tests → Build
+- **Backend:** Checkout → Install → TypeScript type check → Start an ephemeral PostgreSQL 17 + pgvector service → Run migrations → Run Vitest tests → Build
 - **Frontend:** Checkout → Install → Build (Next.js production build)
+
+The CI database runs inside the GitHub Actions job and is discarded after the run. This makes tests independent of external database availability and prevents CI from using development or production data. Database test files are also configured to run sequentially because they reset shared tables between suites.
 
 ### Continuous Deployment (`cd.yml`)
 Triggered on pushes to `main`:
