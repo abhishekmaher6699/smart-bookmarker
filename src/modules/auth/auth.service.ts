@@ -46,15 +46,15 @@ export async function registerUser(input: RegisterInput) {
 
   const passwordHash = await hashPassword(input.password);
 
-  const user = await createUser(email, passwordHash);
+  await createUser(email, passwordHash);
 
-  const { token, tokenHash } = generateEmailVerificationToken();
+  // const { token, tokenHash } = generateEmailVerificationToken();
 
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await createEmailVerificationToken(user.id, tokenHash, expiresAt);
+  // await createEmailVerificationToken(user.id, tokenHash, expiresAt);
 
-  await emailProvider.sendEmailVerificationEmail(user.email, token);
+  // await emailProvider.sendEmailVerificationEmail(user.email, token);
 }
 
 export async function loginUser(input: LoginInput) {
