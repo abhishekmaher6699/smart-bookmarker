@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Bookmarker",
+  "version": "1.0.0",
+  "description": "Capture web pages for Smart Bookmarker.",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
