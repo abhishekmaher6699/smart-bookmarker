@@ -76,6 +76,12 @@ export function detectType(
     return urlType;
   }
 
+  const contentTypeMatch = detectTypeFromContentType(contentType);
+
+  if (contentTypeMatch) {
+    return contentTypeMatch;
+  }
+
   const metadataType = detectTypeFromMetadata(ogType);
 
 

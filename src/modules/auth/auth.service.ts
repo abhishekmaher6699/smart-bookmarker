@@ -46,7 +46,7 @@ export async function registerUser(input: RegisterInput) {
 
   const passwordHash = await hashPassword(input.password);
 
-  await createUser(email, passwordHash);
+  const user = await createUser(email, passwordHash);
 
   // const { token, tokenHash } = generateEmailVerificationToken();
 
@@ -55,6 +55,30 @@ export async function registerUser(input: RegisterInput) {
   // await createEmailVerificationToken(user.id, tokenHash, expiresAt);
 
   // await emailProvider.sendEmailVerificationEmail(user.email, token);
+
+  return createSession(user);
+}
+
+async function createSession(user: { id: string; email: string }) {
+  const accessToken = signJwt(user.id, 15 * 60);
+
+  const familyId = randomUUID();
+  const refreshToken = generateRefreshToken();
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+  const refreshTokenExpiry = getRefreshTokenExpiry();
+
+  await createRefreshToken(
+    user.id,
+    familyId,
+    refreshTokenHash,
+    refreshTokenExpiry,
+  );
+
+  return {
+    user: { id: user.id, email: user.email },
+    accessToken,
+    refreshToken,
+  };
 }
 
 export async function loginUser(input: LoginInput) {
@@ -71,24 +95,7 @@ export async function loginUser(input: LoginInput) {
     throw new AppError(401, "Invalid email or password");
   }
 
-  const accessToken = signJwt(user.id, 15 * 60);
-
-  const familyId = randomUUID();
-  const refreshToken = generateRefreshToken();
-  const refreshTokenHash = hashRefreshToken(refreshToken);
-  const refreshTokenExpiry = getRefreshTokenExpiry();
-
-  await createRefreshToken(
-    user.id,
-    familyId,
-    refreshTokenHash,
-    refreshTokenExpiry,
-  );
-
-  return {
-    accessToken,
-    refreshToken,
-  };
+  return createSession(user);
 }
 
 export async function refreshAccessToken(refreshToken: string) {

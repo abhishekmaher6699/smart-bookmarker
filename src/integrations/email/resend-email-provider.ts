@@ -19,8 +19,11 @@ export class ResendEmailProvider implements EmailProvider {
     email: string,
     resetToken: string,
   ): Promise<void> {
-    const resetUrl =
-      `http://localhost:3000/reset-password?token=${encodeURIComponent(resetToken)}`;
+    const resetUrl = new URL(
+      "/reset-password",
+      env.frontendUrl,
+    );
+    resetUrl.searchParams.set("token", resetToken);
 
     const { error } = await this.resend.emails.send({
       from: env.emailFrom,
@@ -35,7 +38,7 @@ export class ResendEmailProvider implements EmailProvider {
         </p>
 
         <p>
-          <a href="${resetUrl}">
+          <a href="${resetUrl.toString()}">
             Reset your password
           </a>
         </p>
@@ -62,10 +65,11 @@ export class ResendEmailProvider implements EmailProvider {
     email: string,
     verificationToken: string,
   ): Promise<void> {
-    const verificationUrl =
-      `http://localhost:3000/auth/verify-email?token=${encodeURIComponent(
-        verificationToken,
-      )}`;
+    const verificationUrl = new URL(
+      "/verify-email",
+      env.frontendUrl,
+    );
+    verificationUrl.searchParams.set("token", verificationToken);
 
     const { error } = await this.resend.emails.send({
       from: env.emailFrom,
@@ -79,7 +83,7 @@ export class ResendEmailProvider implements EmailProvider {
         </p>
 
         <p>
-          <a href="${verificationUrl}">
+          <a href="${verificationUrl.toString()}">
             Verify your email
           </a>
         </p>

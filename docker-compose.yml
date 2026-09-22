@@ -57,6 +57,7 @@ services:
 
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM}
+      FRONTEND_URL: ${FRONTEND_URL}
 
       REDIS_URL: redis://redis:6379
 

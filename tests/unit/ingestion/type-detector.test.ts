@@ -101,6 +101,12 @@ describe("detectType", () => {
     ).toBe("github");
   });
 
+  it("should use the response content type for PDFs", () => {
+    expect(
+      detectType("https://example.com/guide", "application/pdf", null),
+    ).toBe("pdf");
+  });
+
   it("should use metadata when URL does not identify the type", () => {
     expect(
       detectType("https://example.com/article", "text/html", "article"),

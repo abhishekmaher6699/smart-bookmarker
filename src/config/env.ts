@@ -64,6 +64,10 @@ export const env = {
     getOptionalEnv("EMAIL_FROM") ??
     "onboarding@resend.dev",
 
+  frontendUrl:
+    getOptionalEnv("FRONTEND_URL") ??
+    "http://localhost:3001",
+
   corsOrigin:
     getOptionalEnv("CORS_ORIGIN") ??
     "http://localhost:3000",
