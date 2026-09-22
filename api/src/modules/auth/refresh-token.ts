@@ -1,0 +1,27 @@
+import { createHash, randomBytes } from "node:crypto";
+
+const REFRESH_TOKEN_BYTES = 32
+const REFRESH_TOKEN_DAYS = 30
+
+export function generateRefreshToken(): string {
+    return randomBytes(REFRESH_TOKEN_BYTES)
+            .toString("base64url")
+}
+
+export function hashRefreshToken(
+    token: string
+) : string {
+    return createHash("sha256")
+            .update(token)
+            .digest("hex")
+}
+
+export function getRefreshTokenExpiry(): Date {
+    const expiredAt = new Date()
+
+    expiredAt.setDate(
+        expiredAt.getDate() + REFRESH_TOKEN_DAYS
+    )
+
+    return expiredAt
+}

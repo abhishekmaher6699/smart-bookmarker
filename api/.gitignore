@@ -1,0 +1,8 @@
+.env
+node_modules/
+dist/
+.vscode
+extension
+Roadmap.md
+TODO.md
+.env.test

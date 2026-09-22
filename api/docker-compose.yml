@@ -1,0 +1,136 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bookmarker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bookmarker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "dist/db/migrate.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bookmarker
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "dist/server.js"]
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bookmarker
+      JWT_SECRET: ${JWT_SECRET}
+
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL}
+      GEMINI_EMBEDDING_DIMENSIONS: ${GEMINI_EMBEDDING_DIMENSIONS}
+
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      FRONTEND_URL: ${FRONTEND_URL}
+
+      REDIS_URL: redis://redis:6379
+
+      CORS_ORIGIN: ${CORS_ORIGIN}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "dist/workers/enrichment.worker.js"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bookmarker
+      JWT_SECRET: ${JWT_SECRET}
+
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL}
+      GEMINI_EMBEDDING_DIMENSIONS: ${GEMINI_EMBEDDING_DIMENSIONS}
+
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+
+      REDIS_URL: redis://redis:6379
+      WORKER_METRICS_PORT: 9091
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    user: root
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,232 @@
+import { signJwt } from "./jwt.js";
+
+import { AppError } from "../../errors/app-error.js";
+
+import { hashPassword, verifyPassword } from "./password.js";
+import {
+  generateRefreshToken,
+  hashRefreshToken,
+  getRefreshTokenExpiry,
+} from "./refresh-token.js";
+import {
+  findUserByEmail,
+  createUser,
+  createRefreshToken,
+  findRefreshToken,
+  revokeRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshTokenFamily,
+  findUserById,
+  updatePasswordAndRevokeSessions,
+  createPasswordResetToken,
+  findValidPasswordResetToken,
+  resetPasswordTransaction,
+  createEmailVerificationToken,
+  findValidEmailVerificationToken,
+  verifyEmailTransaction,
+} from "./auth.repository.js";
+import type {
+  RegisterInput,
+  LoginInput,
+  ChangePasswordInput,
+} from "./auth.schema.js";
+import crypto from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { generatePasswordResetToken } from "./password-reset-token.js";
+import { emailProvider } from "../../integrations/email/email.js";
+import { generateEmailVerificationToken } from "./email.verification-token.js";
+
+export async function registerUser(input: RegisterInput) {
+  const email = input.email.trim().toLowerCase();
+  const existingUser = await findUserByEmail(email);
+
+  if (existingUser) {
+    throw new AppError(409, "User already exists");
+  }
+
+  const passwordHash = await hashPassword(input.password);
+
+  const user = await createUser(email, passwordHash);
+
+  // const { token, tokenHash } = generateEmailVerificationToken();
+
+  // const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  // await createEmailVerificationToken(user.id, tokenHash, expiresAt);
+
+  // await emailProvider.sendEmailVerificationEmail(user.email, token);
+
+  return createSession(user);
+}
+
+async function createSession(user: { id: string; email: string }) {
+  const accessToken = signJwt(user.id, 15 * 60);
+
+  const familyId = randomUUID();
+  const refreshToken = generateRefreshToken();
+  const refreshTokenHash = hashRefreshToken(refreshToken);
+  const refreshTokenExpiry = getRefreshTokenExpiry();
+
+  await createRefreshToken(
+    user.id,
+    familyId,
+    refreshTokenHash,
+    refreshTokenExpiry,
+  );
+
+  return {
+    user: { id: user.id, email: user.email },
+    accessToken,
+    refreshToken,
+  };
+}
+
+export async function loginUser(input: LoginInput) {
+  const email = input.email.trim().toLowerCase();
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    throw new AppError(401, "Invalid email or password");
+  }
+
+  const passwordValid = await verifyPassword(input.password, user.password);
+
+  if (!passwordValid) {
+    throw new AppError(401, "Invalid email or password");
+  }
+
+  return createSession(user);
+}
+
+export async function refreshAccessToken(refreshToken: string) {
+  const tokenHash = hashRefreshToken(refreshToken);
+
+  const storedToken = await findRefreshToken(tokenHash);
+
+  if (!storedToken) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  if (storedToken.revoked_at) {
+    await revokeRefreshTokenFamily(storedToken.family_id);
+    throw new AppError(401, "Refresh token reuse detected");
+  }
+
+  if (new Date(storedToken.expires_at) <= new Date()) {
+    throw new AppError(401, "Refresh token has expired");
+  }
+
+  const newResfreshToken = generateRefreshToken();
+  const newRefreshTokenHash = hashRefreshToken(newResfreshToken);
+  const newRefreshTokenExpiry = getRefreshTokenExpiry();
+
+  const rotation = await rotateRefreshToken(
+    storedToken.id,
+    storedToken.user_id,
+    storedToken.family_id,
+    newRefreshTokenHash,
+    newRefreshTokenExpiry,
+  );
+
+  if (rotation.status === "already_revoked") {
+    await revokeRefreshTokenFamily(storedToken.family_id);
+
+    throw new AppError(401, "Refresh token reuse detected");
+  }
+
+  if (rotation.status === "not_found") {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
+  if (rotation.status === "expired") {
+    throw new AppError(401, "Refresh token has expired");
+  }
+
+  const accessToken = signJwt(storedToken.user_id, 15 * 60);
+
+  return {
+    accessToken,
+    refreshToken: newResfreshToken,
+  };
+}
+
+export async function logout(refreshToken: string) {
+  const tokenHash = hashRefreshToken(refreshToken);
+  const storedToken = await findRefreshToken(tokenHash);
+
+  if (!storedToken) {
+    return;
+  }
+
+  await revokeRefreshTokenFamily(storedToken.family_id);
+}
+
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+) {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    throw new AppError(401, "Authentication required");
+  }
+
+  const currentPasswordValid = await verifyPassword(
+    input.currentPassword,
+    user.password,
+  );
+
+  if (!currentPasswordValid) {
+    throw new AppError(400, "Current password is incorrect");
+  }
+
+  const passwordHash = await hashPassword(input.newPassword);
+
+  await updatePasswordAndRevokeSessions(userId, passwordHash);
+}
+
+export async function forgotPassword(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await findUserByEmail(normalizedEmail);
+
+  if (user) {
+    const { token, tokenHash } = generatePasswordResetToken();
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await createPasswordResetToken(user.id, tokenHash, expiresAt);
+
+    await emailProvider.sendPasswordResetEmail(normalizedEmail, token);
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const resetToken = await findValidPasswordResetToken(tokenHash);
+
+  if (!resetToken) {
+    throw new AppError(400, "Invalid or expired reset token");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  await resetPasswordTransaction(
+    resetToken.user_id,
+    resetToken.id,
+    passwordHash,
+  );
+}
+
+export async function verifyEmail(token: string) {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const verificationToken = await findValidEmailVerificationToken(tokenHash);
+
+  if (!verificationToken) {
+    throw new AppError(400, "Invalid or expired verification token");
+  }
+
+  await verifyEmailTransaction(verificationToken.user_id, verificationToken.id);
+}
